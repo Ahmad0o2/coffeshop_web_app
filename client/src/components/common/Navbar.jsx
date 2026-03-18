@@ -421,6 +421,30 @@ export default function Navbar() {
                           </span>
                         </NavLink>
                         <NavLink
+                          to="/rewards"
+                          className={({ isActive }) =>
+                            adminDrawerItemClass({ isActive })
+                          }
+                          onClick={handleCloseMenu}
+                        >
+                          <span>Rewards</span>
+                          <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
+                            &gt;
+                          </span>
+                        </NavLink>
+                        <NavLink
+                          to="/events"
+                          className={({ isActive }) =>
+                            adminDrawerItemClass({ isActive })
+                          }
+                          onClick={handleCloseMenu}
+                        >
+                          <span>Events</span>
+                          <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
+                            &gt;
+                          </span>
+                        </NavLink>
+                        <NavLink
                           to="/location"
                           className={({ isActive }) =>
                             adminDrawerItemClass({ isActive })
