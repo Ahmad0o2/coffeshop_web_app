@@ -143,6 +143,60 @@ const formatOrderDateTime = (value) => {
   }).format(date);
 };
 
+const getLocalDateKey = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unknown";
+  return date.toLocaleDateString("en-CA");
+};
+
+const formatOrderDayLabel = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown Day";
+
+  const today = new Date();
+  const todayKey = getLocalDateKey(today);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = getLocalDateKey(yesterday);
+  const currentKey = getLocalDateKey(date);
+
+  if (currentKey === todayKey) return "Today";
+  if (currentKey === yesterdayKey) return "Yesterday";
+
+  return date.toLocaleDateString("en-GB", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+const groupOrdersByDay = (orders) => {
+  const sortedOrders = [...orders].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+  const grouped = new Map();
+
+  sortedOrders.forEach((order) => {
+    const dateKey = getLocalDateKey(order.createdAt);
+
+    if (!grouped.has(dateKey)) {
+      grouped.set(dateKey, {
+        dateKey,
+        labelSource: order.createdAt,
+        entries: [],
+        totalAmount: 0,
+      });
+    }
+
+    const group = grouped.get(dateKey);
+    group.entries.push(order);
+    group.totalAmount += Number(order.totalAmount || 0);
+  });
+
+  return Array.from(grouped.values());
+};
+
 const matchesInventoryStatusFilter = (product, filter) => {
   if (!filter || filter === "All Items") return true;
   if (filter === "Tracked") {
@@ -956,6 +1010,11 @@ export default function AdminDashboard() {
       return matchesStatus && matchesPayment && matchesSearch && matchesDay;
     });
   }, [orders, orderFilters]);
+
+  const groupedOrders = useMemo(
+    () => groupOrdersByDay(filteredOrders),
+    [filteredOrders],
+  );
 
   const normalizeSizePrices = (product) => {
     if (product.sizePrices?.length) return product.sizePrices;
@@ -2391,100 +2450,133 @@ export default function AdminDashboard() {
                 </div>
               </div>
               <div className="mt-4 space-y-4 text-sm">
-                {filteredOrders.map((order) => (
-                  <div key={order._id} className={orderCardClass}>
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                {groupedOrders.map((group) => (
+                  <div
+                    key={group.dateKey}
+                    className={cn(
+                      dashboardCompactItemClass,
+                      "space-y-4 p-4",
+                      isDayTheme
+                        ? "border-[#3f7674]/14 bg-[#f8fcfc]"
+                        : "border-gold/14 bg-[rgba(23,17,15,0.94)]",
+                    )}
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="text-xs font-medium text-cocoa/68">
-                          Order #{order._id}
-                        </p>
-                        <p className="mt-1 text-sm text-cocoa/76">
-                          Payment: {order.paymentMethod || "Cash"}
-                        </p>
-                        <p className="mt-1 text-xs text-cocoa/66">
-                          Placed: {formatOrderDateTime(order.createdAt)}
+                        <h3 className="text-lg font-semibold text-espresso">
+                          {formatOrderDayLabel(group.labelSource)}
+                        </h3>
+                        <p className="mt-1 text-xs text-cocoa/60">
+                          {group.entries.length} order
+                          {group.entries.length > 1 ? "s" : ""} in this group
                         </p>
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-[1fr_auto] lg:min-w-[220px]">
-                        <SelectMenu
-                          value={order.status}
-                          onChange={(value) =>
-                            updateOrderStatus(order._id, value)
-                          }
-                          disabled={Boolean(updatingOrderIds[order._id])}
-                          className="w-full"
-                          menuClassName="w-full"
-                          options={statusOptions.map((status) => ({
-                            label: status,
-                            value: status,
-                          }))}
-                        />
-                        <Badge className="justify-center">
-                          {order.totalAmount?.toFixed(2)} JD
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge>{group.entries.length} orders</Badge>
+                        <Badge variant="highlight">
+                          {group.totalAmount.toFixed(2)} JD total
                         </Badge>
                       </div>
                     </div>
-                    <div className="mt-3 space-y-2">
-                      {(order.items || []).map((item) => (
-                        <div key={item._id} className={orderLineItemClass}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-center gap-3">
-                              {item.productId?.imageUrl ? (
-                                <img
-                                  src={item.productId.imageUrl}
-                                  alt={item.productId?.name || "Item"}
-                                  className="h-12 w-12 rounded-xl2 object-cover"
-                                />
-                              ) : (
-                                <div className="h-12 w-12 rounded-xl2 bg-gradient-to-br from-obsidian via-caramel to-gold" />
-                              )}
-                              <div>
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <p className="text-sm font-semibold text-espresso">
-                                    {item.productId?.name || "Item"}
-                                  </p>
-                                  {item.isRewardRedemption && (
-                                    <Badge>Redeemed</Badge>
-                                  )}
-                                </div>
-                                <p className="text-xs text-cocoa/72">
-                                  {item.quantity}x{" "}
-                                  {item.selectedSize || "Regular"} -{" "}
-                                  {item.isRewardRedemption
-                                    ? "Free reward item"
-                                    : `${(item.unitPrice || 0).toFixed(2)} JD`}
-                                </p>
-                                {item.selectedAddOns?.length > 0 && (
-                                  <p className="text-xs text-cocoa/72">
-                                    Add-ons: {item.selectedAddOns.join(", ")}
-                                  </p>
-                                )}
-                              </div>
+
+                    <div className="space-y-3">
+                      {group.entries.map((order) => (
+                        <div key={order._id} className={orderCardClass}>
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                              <p className="text-xs font-medium text-cocoa/68">
+                                Order #{order._id}
+                              </p>
+                              <p className="mt-1 text-sm text-cocoa/76">
+                                Payment: {order.paymentMethod || "Cash"}
+                              </p>
+                              <p className="mt-1 text-xs text-cocoa/66">
+                                Placed: {formatOrderDateTime(order.createdAt)}
+                              </p>
                             </div>
-                            <span className="shrink-0 text-xs font-medium text-cocoa/72">
-                              {item.isRewardRedemption
-                                ? "Free"
-                                : `${(item.lineTotal || 0).toFixed(2)} JD`}
-                            </span>
+                            <div className="grid gap-3 sm:grid-cols-[1fr_auto] lg:min-w-[220px]">
+                              <SelectMenu
+                                value={order.status}
+                                onChange={(value) =>
+                                  updateOrderStatus(order._id, value)
+                                }
+                                disabled={Boolean(updatingOrderIds[order._id])}
+                                className="w-full"
+                                menuClassName="w-full"
+                                options={statusOptions.map((status) => ({
+                                  label: status,
+                                  value: status,
+                                }))}
+                              />
+                              <Badge className="justify-center">
+                                {order.totalAmount?.toFixed(2)} JD
+                              </Badge>
+                            </div>
                           </div>
+                          <div className="mt-3 space-y-2">
+                            {(order.items || []).map((item) => (
+                              <div key={item._id} className={orderLineItemClass}>
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-center gap-3">
+                                    {item.productId?.imageUrl ? (
+                                      <img
+                                        src={item.productId.imageUrl}
+                                        alt={item.productId?.name || "Item"}
+                                        className="h-12 w-12 rounded-xl2 object-cover"
+                                      />
+                                    ) : (
+                                      <div className="h-12 w-12 rounded-xl2 bg-gradient-to-br from-obsidian via-caramel to-gold" />
+                                    )}
+                                    <div>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <p className="text-sm font-semibold text-espresso">
+                                          {item.productId?.name || "Item"}
+                                        </p>
+                                        {item.isRewardRedemption && (
+                                          <Badge>Redeemed</Badge>
+                                        )}
+                                      </div>
+                                      <p className="text-xs text-cocoa/72">
+                                        {item.quantity}x{" "}
+                                        {item.selectedSize || "Regular"} -{" "}
+                                        {item.isRewardRedemption
+                                          ? "Free reward item"
+                                          : `${(item.unitPrice || 0).toFixed(2)} JD`}
+                                      </p>
+                                      {item.selectedAddOns?.length > 0 && (
+                                        <p className="text-xs text-cocoa/72">
+                                          Add-ons: {item.selectedAddOns.join(", ")}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <span className="shrink-0 text-xs font-medium text-cocoa/72">
+                                    {item.isRewardRedemption
+                                      ? "Free"
+                                      : `${(item.lineTotal || 0).toFixed(2)} JD`}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                          {order.specialInstructions && (
+                            <div
+                              className={cn(
+                                "mt-3 rounded-[1rem] border px-3 py-2.5 text-xs",
+                                isDayTheme
+                                  ? "border-[#3f7674]/14 bg-[#f3f9f8] text-cocoa/78"
+                                  : "border-gold/14 bg-[rgba(27,21,18,0.88)] text-cocoa/74",
+                              )}
+                            >
+                              Notes: {order.specialInstructions}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
-                    {order.specialInstructions && (
-                      <div
-                        className={cn(
-                          "mt-3 rounded-[1rem] border px-3 py-2.5 text-xs",
-                          isDayTheme
-                            ? "border-[#3f7674]/14 bg-[#f3f9f8] text-cocoa/78"
-                            : "border-gold/14 bg-[rgba(27,21,18,0.88)] text-cocoa/74",
-                        )}
-                      >
-                        Notes: {order.specialInstructions}
-                      </div>
-                    )}
                   </div>
                 ))}
-                {filteredOrders.length === 0 && (
+                {groupedOrders.length === 0 && (
                   <p className="text-sm text-cocoa/60">No orders found.</p>
                 )}
               </div>
