@@ -3066,18 +3066,23 @@ export default function AdminDashboard() {
                       draft,
                     );
                     const draftStatusLabel = getInventoryDraftStatusLabel(draft);
+                    const isDraftOutOfStock =
+                      draft.trackInventory &&
+                      draft.inventoryQuantity !== "" &&
+                      normalizedDraft.inventoryQuantity !== null &&
+                      normalizedDraft.inventoryQuantity <= 0;
+                    const isDraftLowStock =
+                      draft.trackInventory &&
+                      draft.inventoryQuantity !== "" &&
+                      normalizedDraft.inventoryQuantity !== null &&
+                      normalizedDraft.inventoryQuantity > 0 &&
+                      normalizedDraft.inventoryQuantity <=
+                        normalizedDraft.lowStockThreshold;
                     const statusClass = !draft.isAvailable
                       ? "border border-slate-200/80 bg-slate-50 text-slate-700"
-                      : draft.trackInventory &&
-                          draft.inventoryQuantity !== "" &&
-                          normalizedDraft.inventoryQuantity !== null &&
-                          normalizedDraft.inventoryQuantity <= 0
+                      : isDraftOutOfStock
                         ? "border border-rose-200/80 bg-rose-50 text-rose-700"
-                        : draft.trackInventory &&
-                            draft.inventoryQuantity !== "" &&
-                            normalizedDraft.inventoryQuantity !== null &&
-                            normalizedDraft.inventoryQuantity <=
-                              normalizedDraft.lowStockThreshold
+                        : isDraftLowStock
                           ? "border border-amber-200/80 bg-amber-50 text-amber-700"
                           : isDayTheme
                             ? "border border-[#3f7674]/15 bg-[#edf6f5] text-[#315f5e]"
@@ -3141,6 +3146,21 @@ export default function AdminDashboard() {
                               {draftStatusLabel}
                             </span>
                           </div>
+
+                          {(isDraftOutOfStock || isDraftLowStock) && (
+                            <div
+                              className={cn(
+                                "mx-4 rounded-[1rem] border px-3 py-2.5 text-xs font-medium",
+                                isDraftOutOfStock
+                                  ? "border-rose-200/80 bg-rose-50 text-rose-700"
+                                  : "border-amber-200/80 bg-amber-50 text-amber-700",
+                              )}
+                            >
+                              {isDraftOutOfStock
+                                ? "Out of stock: this item is blocked from new orders until you restock it."
+                                : `Low stock warning: only ${normalizedDraft.inventoryQuantity} left before this item runs out.`}
+                            </div>
+                          )}
 
                           <div
                             className={cn(
