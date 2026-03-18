@@ -1,0 +1,216 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700&family=Manrope:wght@300;400;500;600;700&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --obsidian: 13 10 9;
+    --obsidian-2: 18 14 12;
+    --obsidian-3: 11 8 7;
+    --espresso: 242 230 216;
+    --cocoa: 205 185 166;
+    --cream: 255 248 242;
+    --oat: 246 241 235;
+    --sand: 237 226 214;
+    --caramel: 199 138 74;
+    --mint: 78 138 115;
+    --gold: 234 181 99;
+    color-scheme: dark;
+  }
+
+  .theme-day {
+    --obsidian: 239 247 246;
+    --obsidian-2: 230 241 240;
+    --obsidian-3: 247 252 252;
+    --espresso: 20 39 38;
+    --cocoa: 54 77 76;
+    --cream: 16 33 32;
+    --oat: 242 249 248;
+    --sand: 221 237 236;
+    --caramel: 63 118 116;
+    --mint: 110 167 165;
+    --gold: 82 148 146;
+    color-scheme: light;
+  }
+
+  * {
+    @apply box-border;
+  }
+
+  body {
+    background: linear-gradient(
+      180deg,
+      rgb(var(--obsidian)) 0%,
+      rgb(var(--obsidian-2)) 55%,
+      rgb(var(--obsidian-3)) 100%
+    );
+    @apply text-espresso font-sans antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply font-display text-cream;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl3 border border-gold/20 bg-obsidian/70 text-espresso shadow-card;
+  }
+
+  .theme-day .card {
+    border-color: rgb(var(--gold) / 0.18);
+    background: rgba(248, 252, 252, 0.94);
+    box-shadow: 0 14px 32px rgba(34, 71, 70, 0.1);
+  }
+
+  .theme-day .ui-card {
+    border-color: rgb(var(--gold) / 0.18);
+    background: rgba(248, 252, 252, 0.94);
+    box-shadow: 0 14px 32px rgba(34, 71, 70, 0.1);
+  }
+
+  .input-field {
+    @apply w-full rounded-xl2 border border-gold/20 bg-obsidian/60 px-3 py-2 text-sm text-espresso shadow-sm placeholder:text-cocoa/70 focus:outline-none focus:ring-2 focus:ring-gold/40;
+  }
+
+  .theme-day .input-field,
+  .theme-day .select-field {
+    background: rgba(248, 252, 252, 0.9);
+    border-color: rgb(var(--gold) / 0.2);
+  }
+
+  .select-field {
+    @apply w-full appearance-none rounded-xl2 border border-gold/20 bg-obsidian/60 px-3 py-2 text-sm text-espresso shadow-sm focus:outline-none focus:ring-2 focus:ring-gold/40;
+  }
+
+  .section-shell {
+    @apply mx-auto w-full max-w-6xl px-6 py-12;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-gold px-5 py-3 text-sm font-semibold text-obsidian shadow-card transition hover:bg-caramel active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-gold/30 bg-obsidian/50 px-5 py-3 text-sm font-semibold text-espresso transition hover:border-gold/60 hover:bg-obsidian/70;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border border-transparent px-4 py-2 text-sm font-semibold text-espresso transition hover:bg-obsidian/60;
+  }
+
+  .glass-card {
+    @apply rounded-xl3 border border-white/40 bg-white/70 shadow-card backdrop-blur-lg;
+  }
+
+  .theme-day .glass-card {
+    border-color: rgb(var(--gold) / 0.16);
+    background: rgba(244, 250, 250, 0.92);
+    box-shadow: 0 14px 30px rgba(34, 71, 70, 0.09);
+    backdrop-filter: none;
+  }
+
+  .section-title {
+    @apply text-2xl font-semibold sm:text-3xl;
+  }
+
+  .section-subtitle {
+    @apply text-sm text-cocoa/70 sm:text-base;
+  }
+
+  .pill {
+    @apply rounded-full border border-gold/40 bg-obsidian/60 px-3 py-1 text-xs font-semibold text-espresso;
+  }
+
+  .pill-active {
+    @apply rounded-full border border-gold/60 bg-obsidian px-3 py-1 text-xs font-semibold text-cream;
+  }
+
+  .segmented {
+    @apply inline-flex flex-wrap items-center gap-2 rounded-full border border-gold/30 bg-obsidian/40 p-1;
+  }
+
+  .segmented-btn {
+    @apply rounded-full px-3 py-1 text-xs font-semibold text-espresso transition;
+  }
+
+  .segmented-btn-active {
+    @apply bg-gold/80 text-obsidian shadow-sm;
+  }
+
+  .upload-panel {
+    @apply rounded-xl3 border border-dashed border-gold/40 bg-obsidian/40 p-4 shadow-sm;
+  }
+
+  .upload-button {
+    @apply inline-flex cursor-pointer items-center justify-center rounded-full border border-gold/30 bg-obsidian/60 px-4 py-2 text-xs font-semibold text-espresso shadow-sm transition hover:border-gold/60 hover:bg-obsidian/80;
+  }
+
+  .chip {
+    @apply inline-flex items-center rounded-full border border-gold/30 bg-obsidian/40 px-3 py-1 text-xs text-espresso;
+  }
+
+  .form-error {
+    @apply rounded-xl2 border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200;
+  }
+
+  .glow-border {
+    @apply relative overflow-hidden;
+  }
+
+  .glow-border::after {
+    content: '';
+    @apply absolute inset-0 rounded-xl3 border border-gold/30 opacity-60;
+  }
+}
+
+@layer utilities {
+  @keyframes float-soft {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  @keyframes fade-up {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes greeting-glow {
+    0%,
+    100% {
+      opacity: 0.75;
+      transform: translateY(0);
+    }
+    50% {
+      opacity: 1;
+      transform: translateY(-2px);
+    }
+  }
+
+  .float-soft {
+    animation: float-soft 6s ease-in-out infinite;
+  }
+
+  .fade-up {
+    animation: fade-up 0.8s ease forwards;
+  }
+
+  .greeting-glow {
+    animation: greeting-glow 4s ease-in-out infinite;
+  }
+}
