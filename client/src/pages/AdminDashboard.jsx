@@ -3295,7 +3295,7 @@ export default function AdminDashboard() {
                           </div>
 
                           {inventoryError && (
-                            <p className="px-4 pt-3 form-error">
+                            <p className="mx-4 form-error">
                               {inventoryError}
                             </p>
                           )}

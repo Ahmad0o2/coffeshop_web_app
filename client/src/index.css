@@ -155,7 +155,14 @@
   }
 
   .form-error {
-    @apply rounded-xl2 border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-200;
+    @apply mt-3 block w-full rounded-xl2 border border-red-400/50 bg-red-500/15 px-3.5 py-3 text-sm font-medium leading-5 text-red-100 shadow-[0_12px_26px_rgba(127,29,29,0.16)];
+  }
+
+  .theme-day .form-error {
+    border-color: rgba(239, 68, 68, 0.28);
+    background: rgba(254, 242, 242, 0.96);
+    color: rgb(153 27 27);
+    box-shadow: 0 10px 22px rgba(239, 68, 68, 0.08);
   }
 
   .glow-border {
