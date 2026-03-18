@@ -385,32 +385,52 @@ export default function Navbar() {
                         <p className={adminMenuSectionTitleClass}>Cafe Pages</p>
                         <NavLink
                           to="/"
-                          className={navClass}
+                          className={({ isActive }) =>
+                            adminDrawerItemClass({ isActive })
+                          }
                           onClick={handleCloseMenu}
                           end
                         >
-                          Home
+                          <span>Home</span>
+                          <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
+                            &gt;
+                          </span>
                         </NavLink>
                         <NavLink
                           to="/menu"
-                          className={navClass}
+                          className={({ isActive }) =>
+                            adminDrawerItemClass({ isActive })
+                          }
                           onClick={handleCloseMenu}
                         >
-                          Menu
+                          <span>Menu</span>
+                          <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
+                            &gt;
+                          </span>
                         </NavLink>
                         <NavLink
                           to="/gallery"
-                          className={navClass}
+                          className={({ isActive }) =>
+                            adminDrawerItemClass({ isActive })
+                          }
                           onClick={handleCloseMenu}
                         >
-                          Gallery
+                          <span>Gallery</span>
+                          <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
+                            &gt;
+                          </span>
                         </NavLink>
                         <NavLink
                           to="/location"
-                          className={navClass}
+                          className={({ isActive }) =>
+                            adminDrawerItemClass({ isActive })
+                          }
                           onClick={handleCloseMenu}
                         >
-                          Location
+                          <span>Location</span>
+                          <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
+                            &gt;
+                          </span>
                         </NavLink>
                       </div>
                     </>
