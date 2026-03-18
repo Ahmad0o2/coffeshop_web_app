@@ -2978,86 +2978,85 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              <div className="grid gap-6 xl:grid-cols-[20rem_minmax(0,1fr)]">
-                <div className={dashboardPanelClass}>
-                  <DashboardSectionHeading
-                    eyebrow="Stock Overview"
-                    title="Inventory CMS"
-                    description="A dedicated stock workspace for product counts, low-stock warnings, and order availability."
+              <div className={dashboardPanelClass}>
+                <DashboardSectionHeading
+                  eyebrow="Stock Overview"
+                  title="Inventory CMS"
+                  description="A dedicated stock workspace for product counts, low-stock warnings, and order availability."
+                />
+                <div className="mt-5 grid gap-3 md:grid-cols-3">
+                  <DashboardStatCard
+                    label="Tracked Items"
+                    value={trackedInventoryProductsCount}
+                    note={`${products.length} total products`}
                   />
-                  <div className="mt-5 grid gap-3 md:grid-cols-3 xl:grid-cols-1">
-                    <DashboardStatCard
-                      label="Tracked Items"
-                      value={trackedInventoryProductsCount}
-                      note={`${products.length} total products`}
-                    />
-                    <DashboardStatCard
-                      label="Low Stock"
-                      value={lowStockProductsCount}
-                      note="Needs attention soon"
-                    />
-                    <DashboardStatCard
-                      label="Out Of Stock"
-                      value={outOfStockProductsCount}
-                      note="Currently blocked from orders"
-                    />
-                  </div>
+                  <DashboardStatCard
+                    label="Low Stock"
+                    value={lowStockProductsCount}
+                    note="Needs attention soon"
+                  />
+                  <DashboardStatCard
+                    label="Out Of Stock"
+                    value={outOfStockProductsCount}
+                    note="Currently blocked from orders"
+                  />
                 </div>
+              </div>
 
-                <div className={dashboardPanelClass}>
-                  <DashboardSectionHeading
-                    eyebrow="Stock Library"
-                    title="Inventory List"
-                    description={`${filteredInventoryProducts.length} products match the current filters.`}
-                    action={
-                      <Badge>{trackedInventoryProductsCount} tracked</Badge>
-                    }
-                  />
-                  <div className="mt-4 space-y-3 text-sm">
-                    {filteredInventoryProducts.map((product) => {
-                      const draft =
-                        inventoryDrafts[product._id] ||
-                        buildInventoryDraft(product);
-                      const inventoryError = inventoryErrors[product._id];
-                      const isSavingInventory = Boolean(
-                        inventorySavingIds[product._id],
-                      );
-                      const hasChanges = hasInventoryDraftChanges(
-                        product,
-                        draft,
-                      );
-                      const statusClass = isProductOutOfStock(product)
-                        ? "border border-rose-200/80 bg-rose-50 text-rose-700"
-                        : isProductLowStock(product)
-                          ? "border border-amber-200/80 bg-amber-50 text-amber-700"
-                          : isDayTheme
-                            ? "border border-[#3f7674]/15 bg-[#edf6f5] text-[#315f5e]"
-                            : "border border-gold/20 bg-obsidian/55 text-espresso";
+              <div className={dashboardPanelClass}>
+                <DashboardSectionHeading
+                  eyebrow="Stock Library"
+                  title="Inventory List"
+                  description={`${filteredInventoryProducts.length} products match the current filters.`}
+                  action={
+                    <Badge>{trackedInventoryProductsCount} tracked</Badge>
+                  }
+                />
+                <div className="mt-4 space-y-3 text-sm">
+                  {filteredInventoryProducts.map((product) => {
+                    const draft =
+                      inventoryDrafts[product._id] ||
+                      buildInventoryDraft(product);
+                    const inventoryError = inventoryErrors[product._id];
+                    const isSavingInventory = Boolean(
+                      inventorySavingIds[product._id],
+                    );
+                    const hasChanges = hasInventoryDraftChanges(
+                      product,
+                      draft,
+                    );
+                    const statusClass = isProductOutOfStock(product)
+                      ? "border border-rose-200/80 bg-rose-50 text-rose-700"
+                      : isProductLowStock(product)
+                        ? "border border-amber-200/80 bg-amber-50 text-amber-700"
+                        : isDayTheme
+                          ? "border border-[#3f7674]/15 bg-[#edf6f5] text-[#315f5e]"
+                          : "border border-gold/20 bg-obsidian/55 text-espresso";
 
-                      return (
-                        <div
-                          key={product._id}
-                          className={cn(
-                            dashboardItemClass,
-                            "overflow-hidden p-0",
-                            isDayTheme
-                              ? "border-[#3f7674]/16 bg-[#fcfefe]"
-                              : "",
-                          )}
-                        >
-                          <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="flex min-w-0 items-center gap-3">
-                              {product.imageUrl ? (
-                                <img
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                  className="h-14 w-14 rounded-xl2 object-cover"
-                                />
-                              ) : (
-                                <div className="h-14 w-14 rounded-xl2 bg-gradient-to-br from-espresso via-caramel to-cream" />
-                              )}
-                              <div className="min-w-0">
-                                <p className="font-semibold text-espresso">
+                    return (
+                      <div
+                        key={product._id}
+                        className={cn(
+                          dashboardItemClass,
+                          "overflow-hidden p-0",
+                          isDayTheme
+                            ? "border-[#3f7674]/16 bg-[#fcfefe]"
+                            : "",
+                        )}
+                      >
+                        <div className="flex flex-col gap-4 p-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="flex min-w-0 items-center gap-3">
+                            {product.imageUrl ? (
+                              <img
+                                src={product.imageUrl}
+                                alt={product.name}
+                                className="h-14 w-14 rounded-xl2 object-cover"
+                              />
+                            ) : (
+                              <div className="h-14 w-14 rounded-xl2 bg-gradient-to-br from-espresso via-caramel to-cream" />
+                            )}
+                            <div className="min-w-0">
+                              <p className="font-semibold text-espresso">
                                   {product.name}
                                 </p>
                                 <p className="mt-1 text-xs text-cocoa/60">
@@ -3234,7 +3233,6 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 </div>
-              </div>
             </div>
           )}
 
