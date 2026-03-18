@@ -1,19 +1,18 @@
-import { Link } from 'react-router-dom'
-import useSettings from '../hooks/useSettings'
-import { CameraIcon } from '../components/common/Icons'
-import { Button } from '../components/ui/button'
+import { Link } from "react-router-dom";
+import useSettings from "../hooks/useSettings";
+import { CameraIcon } from "../components/common/Icons";
+import { Button } from "../components/ui/button";
 
-const fallbackGalleryImages = (import.meta.env.VITE_GALLERY_IMAGES || '')
-  .split(',')
+const fallbackGalleryImages = (import.meta.env.VITE_GALLERY_IMAGES || "")
+  .split(",")
   .map((url) => url.trim())
-  .filter(Boolean)
+  .filter(Boolean);
 
 export default function Gallery() {
-  const { data: settings, isLoading } = useSettings()
-  const images =
-    settings?.galleryUrls?.filter(Boolean)?.length
-      ? settings.galleryUrls.filter(Boolean)
-      : fallbackGalleryImages
+  const { data: settings, isLoading } = useSettings();
+  const images = settings?.galleryUrls?.filter(Boolean)?.length
+    ? settings.galleryUrls.filter(Boolean)
+    : fallbackGalleryImages;
 
   return (
     <section className="section-shell">
@@ -28,7 +27,8 @@ export default function Gallery() {
               Cortina.D Space
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-cocoa/70">
-              Large-format photos of the cafe atmosphere, seating, and late-night mood.
+              Large-format photos of the cafe atmosphere, seating, and
+              late-night mood.
             </p>
           </div>
           <Button asChild variant="secondary">
@@ -44,7 +44,7 @@ export default function Gallery() {
               <div
                 key={index}
                 className={`animate-pulse rounded-xl3 border border-gold/15 bg-white/5 ${
-                  index % 3 === 0 ? 'row-span-2' : 'row-span-1'
+                  index % 3 === 0 ? "row-span-2" : "row-span-1"
                 }`}
               />
             ))}
@@ -60,10 +60,10 @@ export default function Gallery() {
                 key={`${image}-${index}`}
                 className={`group overflow-hidden rounded-xl3 border border-gold/20 bg-obsidian/60 shadow-card ${
                   index % 5 === 0
-                    ? 'row-span-2 xl:col-span-2'
+                    ? "row-span-2 xl:col-span-2"
                     : index % 3 === 0
-                    ? 'row-span-2'
-                    : 'row-span-1'
+                      ? "row-span-2"
+                      : "row-span-1"
                 }`}
               >
                 <img
@@ -77,5 +77,5 @@ export default function Gallery() {
         )}
       </div>
     </section>
-  )
+  );
 }

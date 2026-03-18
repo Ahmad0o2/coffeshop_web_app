@@ -64,89 +64,89 @@ coffeshop_web_app/
 
 ### Auth
 
-| Method | Route | Purpose |
-|---|---|---|
-| `POST` | `/api/v1/auth/register` | Register a new user |
-| `POST` | `/api/v1/auth/login` | Login and receive an auth token |
-| `GET` | `/api/v1/auth/profile` | Get current user profile |
-| `PUT` | `/api/v1/auth/profile` | Update current user profile |
+| Method | Route                   | Purpose                         |
+| ------ | ----------------------- | ------------------------------- |
+| `POST` | `/api/v1/auth/register` | Register a new user             |
+| `POST` | `/api/v1/auth/login`    | Login and receive an auth token |
+| `GET`  | `/api/v1/auth/profile`  | Get current user profile        |
+| `PUT`  | `/api/v1/auth/profile`  | Update current user profile     |
 
 ### Catalog
 
-| Method | Route | Purpose |
-|---|---|---|
-| `GET` | `/api/v1/categories` | List categories |
-| `GET` | `/api/v1/categories/:id` | Get one category |
-| `GET` | `/api/v1/products` | List products |
-| `GET` | `/api/v1/products/:id` | Get one product |
-| `GET` | `/api/v1/settings` | Get site settings and homepage media |
+| Method | Route                    | Purpose                              |
+| ------ | ------------------------ | ------------------------------------ |
+| `GET`  | `/api/v1/categories`     | List categories                      |
+| `GET`  | `/api/v1/categories/:id` | Get one category                     |
+| `GET`  | `/api/v1/products`       | List products                        |
+| `GET`  | `/api/v1/products/:id`   | Get one product                      |
+| `GET`  | `/api/v1/settings`       | Get site settings and homepage media |
 
 ### Orders
 
-| Method | Route | Purpose |
-|---|---|---|
-| `POST` | `/api/v1/orders` | Create a new order |
-| `GET` | `/api/v1/orders` | List the authenticated user's orders |
-| `GET` | `/api/v1/orders/:id` | Get one order |
-| `PATCH` | `/api/v1/orders/:id/status` | Update order status |
-| `POST` | `/api/v1/orders/:id/cancel` | Cancel an order |
-| `DELETE` | `/api/v1/orders/:id/items/:itemId` | Remove an item from an order |
+| Method   | Route                              | Purpose                              |
+| -------- | ---------------------------------- | ------------------------------------ |
+| `POST`   | `/api/v1/orders`                   | Create a new order                   |
+| `GET`    | `/api/v1/orders`                   | List the authenticated user's orders |
+| `GET`    | `/api/v1/orders/:id`               | Get one order                        |
+| `PATCH`  | `/api/v1/orders/:id/status`        | Update order status                  |
+| `POST`   | `/api/v1/orders/:id/cancel`        | Cancel an order                      |
+| `DELETE` | `/api/v1/orders/:id/items/:itemId` | Remove an item from an order         |
 
 ### Rewards
 
-| Method | Route | Purpose |
-|---|---|---|
-| `GET` | `/api/v1/rewards` | List rewards |
-| `POST` | `/api/v1/rewards/redeem` | Redeem a reward |
-| `GET` | `/api/v1/rewards/history` | Get redemption history |
+| Method | Route                     | Purpose                |
+| ------ | ------------------------- | ---------------------- |
+| `GET`  | `/api/v1/rewards`         | List rewards           |
+| `POST` | `/api/v1/rewards/redeem`  | Redeem a reward        |
+| `GET`  | `/api/v1/rewards/history` | Get redemption history |
 
 ### Events
 
-| Method | Route | Purpose |
-|---|---|---|
-| `GET` | `/api/v1/events` | List public events |
-| `GET` | `/api/v1/events/:id` | Get one event |
-| `GET` | `/api/v1/events/registrations/me` | Get my event registrations |
-| `POST` | `/api/v1/events/:id/register` | Register for an event |
-| `POST` | `/api/v1/events/:id/unregister` | Unregister from an event |
+| Method | Route                             | Purpose                    |
+| ------ | --------------------------------- | -------------------------- |
+| `GET`  | `/api/v1/events`                  | List public events         |
+| `GET`  | `/api/v1/events/:id`              | Get one event              |
+| `GET`  | `/api/v1/events/registrations/me` | Get my event registrations |
+| `POST` | `/api/v1/events/:id/register`     | Register for an event      |
+| `POST` | `/api/v1/events/:id/unregister`   | Unregister from an event   |
 
 ### Reviews
 
-| Method | Route | Purpose |
-|---|---|---|
-| `GET` | `/api/v1/reviews` | List reviews |
+| Method | Route             | Purpose      |
+| ------ | ----------------- | ------------ |
+| `GET`  | `/api/v1/reviews` | List reviews |
 | `POST` | `/api/v1/reviews` | Add a review |
 
 ### Admin
 
-| Method | Route | Purpose |
-|---|---|---|
-| `GET` | `/api/v1/admin/activity-logs` | List activity logs |
-| `GET` | `/api/v1/admin/staff` | List staff accounts |
-| `POST` | `/api/v1/admin/staff` | Create a staff account |
-| `PATCH` | `/api/v1/admin/staff/:id` | Update a staff account |
-| `DELETE` | `/api/v1/admin/staff/:id` | Delete a staff account |
-| `POST` | `/api/v1/admin/categories` | Create category |
-| `PUT` | `/api/v1/admin/categories/:id` | Update category |
-| `DELETE` | `/api/v1/admin/categories/:id` | Delete category |
-| `POST` | `/api/v1/admin/products` | Create product |
-| `PUT` | `/api/v1/admin/products/:id` | Update product |
-| `DELETE` | `/api/v1/admin/products/:id` | Delete product |
-| `GET` | `/api/v1/admin/events` | List events for admin |
-| `POST` | `/api/v1/admin/events` | Create event |
-| `PUT` | `/api/v1/admin/events/:id` | Update event |
-| `DELETE` | `/api/v1/admin/events/:id` | Delete event |
-| `GET` | `/api/v1/admin/rewards` | List rewards for admin |
-| `POST` | `/api/v1/admin/rewards` | Create reward |
-| `PUT` | `/api/v1/admin/rewards/:id` | Update reward |
-| `DELETE` | `/api/v1/admin/rewards/:id` | Delete reward |
-| `PUT` | `/api/v1/admin/settings` | Update site settings and media |
-| `PUT` | `/api/v1/admin/settings/space-gallery/:index` | Replace one space gallery image |
-| `DELETE` | `/api/v1/admin/settings/space-gallery/:index` | Delete one space gallery image |
-| `PUT` | `/api/v1/admin/settings/home-display/:index` | Replace one home media image |
-| `DELETE` | `/api/v1/admin/settings/home-display/:index` | Delete one home media image |
-| `PUT` | `/api/v1/admin/settings/gallery/:index` | Replace one gallery image |
-| `DELETE` | `/api/v1/admin/settings/gallery/:index` | Delete one gallery image |
+| Method   | Route                                         | Purpose                         |
+| -------- | --------------------------------------------- | ------------------------------- |
+| `GET`    | `/api/v1/admin/activity-logs`                 | List activity logs              |
+| `GET`    | `/api/v1/admin/staff`                         | List staff accounts             |
+| `POST`   | `/api/v1/admin/staff`                         | Create a staff account          |
+| `PATCH`  | `/api/v1/admin/staff/:id`                     | Update a staff account          |
+| `DELETE` | `/api/v1/admin/staff/:id`                     | Delete a staff account          |
+| `POST`   | `/api/v1/admin/categories`                    | Create category                 |
+| `PUT`    | `/api/v1/admin/categories/:id`                | Update category                 |
+| `DELETE` | `/api/v1/admin/categories/:id`                | Delete category                 |
+| `POST`   | `/api/v1/admin/products`                      | Create product                  |
+| `PUT`    | `/api/v1/admin/products/:id`                  | Update product                  |
+| `DELETE` | `/api/v1/admin/products/:id`                  | Delete product                  |
+| `GET`    | `/api/v1/admin/events`                        | List events for admin           |
+| `POST`   | `/api/v1/admin/events`                        | Create event                    |
+| `PUT`    | `/api/v1/admin/events/:id`                    | Update event                    |
+| `DELETE` | `/api/v1/admin/events/:id`                    | Delete event                    |
+| `GET`    | `/api/v1/admin/rewards`                       | List rewards for admin          |
+| `POST`   | `/api/v1/admin/rewards`                       | Create reward                   |
+| `PUT`    | `/api/v1/admin/rewards/:id`                   | Update reward                   |
+| `DELETE` | `/api/v1/admin/rewards/:id`                   | Delete reward                   |
+| `PUT`    | `/api/v1/admin/settings`                      | Update site settings and media  |
+| `PUT`    | `/api/v1/admin/settings/space-gallery/:index` | Replace one space gallery image |
+| `DELETE` | `/api/v1/admin/settings/space-gallery/:index` | Delete one space gallery image  |
+| `PUT`    | `/api/v1/admin/settings/home-display/:index`  | Replace one home media image    |
+| `DELETE` | `/api/v1/admin/settings/home-display/:index`  | Delete one home media image     |
+| `PUT`    | `/api/v1/admin/settings/gallery/:index`       | Replace one gallery image       |
+| `DELETE` | `/api/v1/admin/settings/gallery/:index`       | Delete one gallery image        |
 
 ## Prerequisites
 
@@ -195,26 +195,26 @@ Copy-Item client/.env.example client/.env
 
 #### `server/.env`
 
-| Variable | Required | Description |
-|---|---|---|
-| `PORT` | Yes | API server port, usually `5000` |
-| `MONGO_URI` | Yes | MongoDB connection string |
-| `JWT_SECRET` | Yes | Secret used to sign auth tokens |
-| `CLIENT_ORIGIN` | Yes | Frontend origin, usually `http://localhost:5173` |
-| `SEED_ON_START` | No | Set to `true` to seed admin/sample data on startup |
-| `SEED_SAMPLE_DATA` | No | Set to `true` to seed sample categories/products/rewards/events |
-| `ADMIN_EMAIL` | No | Admin email to create or promote during seeding |
-| `ADMIN_PASSWORD` | No | Admin password used during seeding |
-| `ADMIN_NAME` | No | Optional seeded admin display name |
-| `ADMIN_PHONE` | No | Optional seeded admin phone |
+| Variable           | Required | Description                                                     |
+| ------------------ | -------- | --------------------------------------------------------------- |
+| `PORT`             | Yes      | API server port, usually `5000`                                 |
+| `MONGO_URI`        | Yes      | MongoDB connection string                                       |
+| `JWT_SECRET`       | Yes      | Secret used to sign auth tokens                                 |
+| `CLIENT_ORIGIN`    | Yes      | Frontend origin, usually `http://localhost:5173`                |
+| `SEED_ON_START`    | No       | Set to `true` to seed admin/sample data on startup              |
+| `SEED_SAMPLE_DATA` | No       | Set to `true` to seed sample categories/products/rewards/events |
+| `ADMIN_EMAIL`      | No       | Admin email to create or promote during seeding                 |
+| `ADMIN_PASSWORD`   | No       | Admin password used during seeding                              |
+| `ADMIN_NAME`       | No       | Optional seeded admin display name                              |
+| `ADMIN_PHONE`      | No       | Optional seeded admin phone                                     |
 
 #### `client/.env`
 
-| Variable | Required | Description |
-|---|---|---|
-| `VITE_API_URL` | Yes | Backend API base URL |
-| `VITE_SOCKET_URL` | Yes | Backend socket server URL |
-| `VITE_GALLERY_IMAGES` | No | Optional gallery image override list |
+| Variable              | Required | Description                          |
+| --------------------- | -------- | ------------------------------------ |
+| `VITE_API_URL`        | Yes      | Backend API base URL                 |
+| `VITE_SOCKET_URL`     | Yes      | Backend socket server URL            |
+| `VITE_GALLERY_IMAGES` | No       | Optional gallery image override list |
 
 ### 4. Start the backend
 

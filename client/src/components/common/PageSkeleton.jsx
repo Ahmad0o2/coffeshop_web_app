@@ -9,7 +9,7 @@ export function PulseLogoLoader({ label = "Loading Cortina.D..." }) {
         {label}
       </p>
     </div>
-  )
+  );
 }
 
 export function PageHeroSkeleton({ cards = 3, sidebar = false }) {
@@ -37,7 +37,11 @@ export function PageHeroSkeleton({ cards = 3, sidebar = false }) {
             <div className="mt-4 h-32 animate-pulse rounded-xl3 bg-white/5" />
           </div>
         )}
-        <div className={sidebar ? "grid gap-5 sm:grid-cols-2 xl:grid-cols-3" : "contents"}>
+        <div
+          className={
+            sidebar ? "grid gap-5 sm:grid-cols-2 xl:grid-cols-3" : "contents"
+          }
+        >
           {Array.from({ length: cards }).map((_, index) => (
             <div key={index} className="card overflow-hidden p-0">
               <div className="h-44 animate-pulse bg-white/5" />
@@ -52,7 +56,7 @@ export function PageHeroSkeleton({ cards = 3, sidebar = false }) {
         </div>
       </div>
     </section>
-  )
+  );
 }
 
 export function DetailSkeleton() {
@@ -66,7 +70,7 @@ export function DetailSkeleton() {
         <div className="mt-6 h-24 animate-pulse rounded-xl3 bg-white/5" />
       </div>
     </section>
-  )
+  );
 }
 
 export function ListSkeleton({ items = 4 }) {
@@ -80,5 +84,5 @@ export function ListSkeleton({ items = 4 }) {
         </div>
       ))}
     </div>
-  )
+  );
 }

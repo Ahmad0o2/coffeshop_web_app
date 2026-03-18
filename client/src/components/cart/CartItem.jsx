@@ -1,28 +1,33 @@
-import SelectMenu from '../common/SelectMenu'
-import { Input } from '../ui/input'
-import { Button } from '../ui/button'
-import { getUnitPrice, normalizeSizePrices } from '../../utils/pricing'
+import SelectMenu from "../common/SelectMenu";
+import { Input } from "../ui/input";
+import { Button } from "../ui/button";
+import { getUnitPrice, normalizeSizePrices } from "../../utils/pricing";
 import {
   canOrderProduct,
   getInventoryQuantity,
   isProductLowStock,
-} from '../../utils/inventory'
+} from "../../utils/inventory";
 
-export default function CartItem({ item, onRemove, onUpdate, onUpdateOptions }) {
-  const sizePrices = normalizeSizePrices(item.product)
-  const sizeOptions = sizePrices.map((entry) => entry.size)
-  const unitPrice = getUnitPrice(item.product, item.selectedSize)
-  const inventoryQuantity = getInventoryQuantity(item.product)
-  const canOrder = canOrderProduct(item.product)
-  const isLowStock = isProductLowStock(item.product)
+export default function CartItem({
+  item,
+  onRemove,
+  onUpdate,
+  onUpdateOptions,
+}) {
+  const sizePrices = normalizeSizePrices(item.product);
+  const sizeOptions = sizePrices.map((entry) => entry.size);
+  const unitPrice = getUnitPrice(item.product, item.selectedSize);
+  const inventoryQuantity = getInventoryQuantity(item.product);
+  const canOrder = canOrderProduct(item.product);
+  const isLowStock = isProductLowStock(item.product);
 
   const toggleAddOn = (addOn) => {
-    const exists = item.selectedAddOns.includes(addOn)
+    const exists = item.selectedAddOns.includes(addOn);
     const next = exists
       ? item.selectedAddOns.filter((value) => value !== addOn)
-      : [...item.selectedAddOns, addOn]
-    onUpdateOptions(item.id, { selectedAddOns: next })
-  }
+      : [...item.selectedAddOns, addOn];
+    onUpdateOptions(item.id, { selectedAddOns: next });
+  };
 
   return (
     <div className="rounded-xl2 border border-gold/20 bg-obsidian/50 p-4 shadow-sm">
@@ -38,9 +43,11 @@ export default function CartItem({ item, onRemove, onUpdate, onUpdateOptions }) 
             <div className="h-16 w-16 rounded-xl2 bg-gradient-to-br from-obsidian via-caramel to-gold" />
           )}
           <div>
-            <p className="text-sm font-semibold text-espresso">{item.product.name}</p>
+            <p className="text-sm font-semibold text-espresso">
+              {item.product.name}
+            </p>
             <p className="text-xs text-cocoa/60">
-              {item.selectedSize || 'Regular'} - {unitPrice.toFixed(2)} JD
+              {item.selectedSize || "Regular"} - {unitPrice.toFixed(2)} JD
             </p>
           </div>
         </div>
@@ -51,12 +58,15 @@ export default function CartItem({ item, onRemove, onUpdate, onUpdateOptions }) 
             max={inventoryQuantity ?? undefined}
             value={item.quantity}
             onChange={(e) => {
-              const nextQuantity = Number(e.target.value)
-              if (inventoryQuantity !== null && nextQuantity > inventoryQuantity) {
-                onUpdate(item.id, inventoryQuantity)
-                return
+              const nextQuantity = Number(e.target.value);
+              if (
+                inventoryQuantity !== null &&
+                nextQuantity > inventoryQuantity
+              ) {
+                onUpdate(item.id, inventoryQuantity);
+                return;
               }
-              onUpdate(item.id, nextQuantity)
+              onUpdate(item.id, nextQuantity);
             }}
             className="w-20"
           />
@@ -69,8 +79,8 @@ export default function CartItem({ item, onRemove, onUpdate, onUpdateOptions }) 
       {!canOrder && (
         <div className="mt-4 rounded-xl2 border border-rose-200/60 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
           {item.product.isAvailable === false
-            ? 'This product is unavailable right now. Please remove it before checkout.'
-            : 'This product is no longer in stock. Please remove it before checkout.'}
+            ? "This product is unavailable right now. Please remove it before checkout."
+            : "This product is no longer in stock. Please remove it before checkout."}
         </div>
       )}
       {canOrder && isLowStock && inventoryQuantity !== null && (
@@ -83,14 +93,18 @@ export default function CartItem({ item, onRemove, onUpdate, onUpdateOptions }) 
         <SelectMenu
           label="Size"
           value={item.selectedSize}
-          onChange={(value) => onUpdateOptions(item.id, { selectedSize: value })}
+          onChange={(value) =>
+            onUpdateOptions(item.id, { selectedSize: value })
+          }
           placeholder="Select size"
           options={sizeOptions.map((size) => {
-            const price = sizePrices.find((entry) => entry.size === size)?.price
+            const price = sizePrices.find(
+              (entry) => entry.size === size,
+            )?.price;
             return {
-              label: `${size} ${price ? `- ${price.toFixed(2)} JD` : ''}`,
+              label: `${size} ${price ? `- ${price.toFixed(2)} JD` : ""}`,
               value: size,
-            }
+            };
           })}
         />
         <div>
@@ -101,7 +115,9 @@ export default function CartItem({ item, onRemove, onUpdate, onUpdateOptions }) 
                 key={addOn}
                 type="button"
                 size="sm"
-                variant={item.selectedAddOns.includes(addOn) ? 'default' : 'secondary'}
+                variant={
+                  item.selectedAddOns.includes(addOn) ? "default" : "secondary"
+                }
                 onClick={() => toggleAddOn(addOn)}
               >
                 {addOn}
@@ -114,5 +130,5 @@ export default function CartItem({ item, onRemove, onUpdate, onUpdateOptions }) 
         </div>
       </div>
     </div>
-  )
+  );
 }

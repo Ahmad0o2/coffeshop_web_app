@@ -65,10 +65,14 @@ export default function ProductCard({ product, onAdd }) {
               {product.categoryName || "Coffee"}
             </span>
             {!isAvailable && (
-              <span className="pill bg-obsidian/80">{getInventoryStatusLabel(product)}</span>
+              <span className="pill bg-obsidian/80">
+                {getInventoryStatusLabel(product)}
+              </span>
             )}
             {isAvailable && isLowStock && inventoryQuantity !== null && (
-              <span className="pill bg-obsidian/80">Only {inventoryQuantity} left</span>
+              <span className="pill bg-obsidian/80">
+                Only {inventoryQuantity} left
+              </span>
             )}
           </div>
           <div className="absolute bottom-4 left-4 rounded-full bg-obsidian/70 px-3 py-1 text-xs font-semibold text-cream">

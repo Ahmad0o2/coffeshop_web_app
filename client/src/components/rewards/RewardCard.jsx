@@ -1,6 +1,6 @@
-import { Badge } from '../ui/badge'
-import { Button } from '../ui/button'
-import { Card, CardFooter, CardHeader, CardTitle } from '../ui/card'
+import { Badge } from "../ui/badge";
+import { Button } from "../ui/button";
+import { Card, CardFooter, CardHeader, CardTitle } from "../ui/card";
 
 export default function RewardCard({
   reward,
@@ -10,8 +10,8 @@ export default function RewardCard({
   readyCount = 0,
   sessionRedeemed = false,
 }) {
-  const showInsufficientPoints = disabled && !redeeming
-  const hasReadyReward = readyCount > 0
+  const showInsufficientPoints = disabled && !redeeming;
+  const hasReadyReward = readyCount > 0;
 
   return (
     <Card className="overflow-hidden">
@@ -47,15 +47,15 @@ export default function RewardCard({
           size="sm"
           onClick={() => onRedeem(reward)}
           disabled={disabled || redeeming}
-          className={showInsufficientPoints ? 'opacity-60 grayscale' : ''}
+          className={showInsufficientPoints ? "opacity-60 grayscale" : ""}
         >
           {redeeming
-            ? 'Redeeming...'
+            ? "Redeeming..."
             : sessionRedeemed
-              ? 'Redeem Again'
-              : 'Redeem'}
+              ? "Redeem Again"
+              : "Redeem"}
         </Button>
       </CardFooter>
     </Card>
-  )
+  );
 }

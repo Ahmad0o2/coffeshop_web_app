@@ -14,5 +14,5 @@ export default function CartSummary({ total }) {
         <span>{total.toFixed(2)} JD</span>
       </div>
     </div>
-  )
+  );
 }

@@ -1,124 +1,132 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { io } from 'socket.io-client'
-import useAuth from '../hooks/useAuth'
-import api from '../services/api'
-import { Badge } from '../components/ui/badge'
-import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import SelectMenu from '../components/common/SelectMenu'
-import { getApiErrorMessage } from '../utils/apiErrors'
+import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { io } from "socket.io-client";
+import useAuth from "../hooks/useAuth";
+import api from "../services/api";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import SelectMenu from "../components/common/SelectMenu";
+import { getApiErrorMessage } from "../utils/apiErrors";
 
-const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'
-const ACTIVITY_LIMIT = 250
+const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+const ACTIVITY_LIMIT = 250;
 
 const fetchActivityLogs = async () => {
-  const { data } = await api.get(`/admin/activity-logs?limit=${ACTIVITY_LIMIT}`)
-  return data.logs || []
-}
+  const { data } = await api.get(
+    `/admin/activity-logs?limit=${ACTIVITY_LIMIT}`,
+  );
+  return data.logs || [];
+};
 
 const getActivityKey = (entry) =>
-  entry?._id || `${entry?.event || 'activity'}-${entry?.occurredAt || ''}-${entry?.summary || ''}`
+  entry?._id ||
+  `${entry?.event || "activity"}-${entry?.occurredAt || ""}-${entry?.summary || ""}`;
 
 const getLocalDateKey = (value) => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return 'unknown'
-  return date.toLocaleDateString('en-CA')
-}
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unknown";
+  return date.toLocaleDateString("en-CA");
+};
 
 const groupLogsByDay = (logs) => {
-  const grouped = new Map()
+  const grouped = new Map();
 
   logs.forEach((entry) => {
-    const dateKey = getLocalDateKey(entry.occurredAt)
+    const dateKey = getLocalDateKey(entry.occurredAt);
 
     if (!grouped.has(dateKey)) {
-      grouped.set(dateKey, [])
+      grouped.set(dateKey, []);
     }
 
-    grouped.get(dateKey).push(entry)
-  })
+    grouped.get(dateKey).push(entry);
+  });
 
   return Array.from(grouped.entries()).map(([dateKey, entries]) => ({
     dateKey,
     labelSource: entries[0]?.occurredAt || dateKey,
     entries,
-  }))
-}
+  }));
+};
 
 export default function AdminActivity() {
-  const { user, isAuthenticated } = useAuth()
-  const isAdmin = user?.role === 'Admin'
-  const [activityLogs, setActivityLogs] = useState([])
+  const { user, isAuthenticated } = useAuth();
+  const isAdmin = user?.role === "Admin";
+  const [activityLogs, setActivityLogs] = useState([]);
   const [filters, setFilters] = useState({
-    search: '',
-    event: 'All',
-    role: 'All',
-    dateRange: 'All',
-  })
+    search: "",
+    event: "All",
+    role: "All",
+    dateRange: "All",
+  });
 
   const {
     data: fetchedLogs = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ['admin-activity-logs'],
+    queryKey: ["admin-activity-logs"],
     queryFn: fetchActivityLogs,
     enabled: isAuthenticated && isAdmin,
-  })
+  });
 
   useEffect(() => {
-    setActivityLogs(fetchedLogs)
-  }, [fetchedLogs])
+    setActivityLogs(fetchedLogs);
+  }, [fetchedLogs]);
 
   useEffect(() => {
-    if (!isAuthenticated || !isAdmin) return undefined
+    if (!isAuthenticated || !isAdmin) return undefined;
 
-    const socket = io(socketUrl)
+    const socket = io(socketUrl);
 
     const handleAdminActivity = (payload) => {
       setActivityLogs((prev) => {
-        const incomingKey = getActivityKey(payload)
-        const next = [payload, ...prev.filter((entry) => getActivityKey(entry) !== incomingKey)]
-        return next.slice(0, ACTIVITY_LIMIT)
-      })
-    }
+        const incomingKey = getActivityKey(payload);
+        const next = [
+          payload,
+          ...prev.filter((entry) => getActivityKey(entry) !== incomingKey),
+        ];
+        return next.slice(0, ACTIVITY_LIMIT);
+      });
+    };
 
-    socket.on('admin:activity', handleAdminActivity)
+    socket.on("admin:activity", handleAdminActivity);
 
     return () => {
-      socket.off('admin:activity', handleAdminActivity)
-      socket.disconnect()
-    }
-  }, [isAuthenticated, isAdmin])
+      socket.off("admin:activity", handleAdminActivity);
+      socket.disconnect();
+    };
+  }, [isAuthenticated, isAdmin]);
 
   const eventOptions = useMemo(() => {
-    const values = Array.from(new Set(activityLogs.map((entry) => entry.event).filter(Boolean)))
+    const values = Array.from(
+      new Set(activityLogs.map((entry) => entry.event).filter(Boolean)),
+    );
     return [
-      { value: 'All', label: 'All Events' },
+      { value: "All", label: "All Events" },
       ...values.map((value) => ({ value, label: value })),
-    ]
-  }, [activityLogs])
+    ];
+  }, [activityLogs]);
 
   const roleOptions = useMemo(() => {
     const values = Array.from(
-      new Set(activityLogs.map((entry) => entry.actor?.role).filter(Boolean))
-    )
+      new Set(activityLogs.map((entry) => entry.actor?.role).filter(Boolean)),
+    );
     return [
-      { value: 'All', label: 'All Roles' },
+      { value: "All", label: "All Roles" },
       ...values.map((value) => ({ value, label: value })),
-    ]
-  }, [activityLogs])
+    ];
+  }, [activityLogs]);
 
   const filteredLogs = useMemo(() => {
-    const searchValue = filters.search.trim().toLowerCase()
-    const todayKey = getLocalDateKey(new Date())
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayKey = getLocalDateKey(yesterday)
-    const weekAgo = new Date()
-    weekAgo.setDate(weekAgo.getDate() - 7)
+    const searchValue = filters.search.trim().toLowerCase();
+    const todayKey = getLocalDateKey(new Date());
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = getLocalDateKey(yesterday);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
 
     return activityLogs.filter((entry) => {
       const matchesSearch = searchValue
@@ -132,65 +140,70 @@ export default function AdminActivity() {
           ]
             .filter(Boolean)
             .some((value) => String(value).toLowerCase().includes(searchValue))
-        : true
+        : true;
 
-      const matchesEvent = filters.event === 'All' ? true : entry.event === filters.event
+      const matchesEvent =
+        filters.event === "All" ? true : entry.event === filters.event;
       const matchesRole =
-        filters.role === 'All' ? true : entry.actor?.role === filters.role
+        filters.role === "All" ? true : entry.actor?.role === filters.role;
 
-      let matchesDateRange = true
-      if (filters.dateRange === 'Today') {
-        matchesDateRange = getLocalDateKey(entry.occurredAt) === todayKey
-      } else if (filters.dateRange === 'Yesterday') {
-        matchesDateRange = getLocalDateKey(entry.occurredAt) === yesterdayKey
-      } else if (filters.dateRange === 'Last7Days') {
-        const occurredAt = new Date(entry.occurredAt)
-        matchesDateRange = !Number.isNaN(occurredAt.getTime()) && occurredAt >= weekAgo
+      let matchesDateRange = true;
+      if (filters.dateRange === "Today") {
+        matchesDateRange = getLocalDateKey(entry.occurredAt) === todayKey;
+      } else if (filters.dateRange === "Yesterday") {
+        matchesDateRange = getLocalDateKey(entry.occurredAt) === yesterdayKey;
+      } else if (filters.dateRange === "Last7Days") {
+        const occurredAt = new Date(entry.occurredAt);
+        matchesDateRange =
+          !Number.isNaN(occurredAt.getTime()) && occurredAt >= weekAgo;
       }
 
-      return matchesSearch && matchesEvent && matchesRole && matchesDateRange
-    })
-  }, [activityLogs, filters])
+      return matchesSearch && matchesEvent && matchesRole && matchesDateRange;
+    });
+  }, [activityLogs, filters]);
 
-  const groupedLogs = useMemo(() => groupLogsByDay(filteredLogs), [filteredLogs])
+  const groupedLogs = useMemo(
+    () => groupLogsByDay(filteredLogs),
+    [filteredLogs],
+  );
 
   const hasActiveFilters =
-    filters.search.trim() !== '' ||
-    filters.event !== 'All' ||
-    filters.role !== 'All' ||
-    filters.dateRange !== 'All'
+    filters.search.trim() !== "" ||
+    filters.event !== "All" ||
+    filters.role !== "All" ||
+    filters.dateRange !== "All";
 
   const formatDayLabel = (value) => {
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return 'Unknown Day'
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Unknown Day";
 
-    const today = new Date()
-    const todayKey = getLocalDateKey(today)
-    const yesterday = new Date(today)
-    yesterday.setDate(yesterday.getDate() - 1)
-    const yesterdayKey = getLocalDateKey(yesterday)
-    const currentKey = getLocalDateKey(date)
+    const today = new Date();
+    const todayKey = getLocalDateKey(today);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = getLocalDateKey(yesterday);
+    const currentKey = getLocalDateKey(date);
 
-    if (currentKey === todayKey) return 'Today'
-    if (currentKey === yesterdayKey) return 'Yesterday'
+    if (currentKey === todayKey) return "Today";
+    if (currentKey === yesterdayKey) return "Yesterday";
 
-    return date.toLocaleDateString('en-GB', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    })
-  }
+    return date.toLocaleDateString("en-GB", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
 
   const formatTime = (value) => {
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) return 'Now'
-    return date.toLocaleTimeString('en-GB', {
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
-  }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Now";
+    return date.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  };
 
   if (!isAuthenticated || !isAdmin) {
     return (
@@ -200,7 +213,7 @@ export default function AdminActivity() {
           This page is available for admin accounts only.
         </p>
       </section>
-    )
+    );
   }
 
   return (
@@ -209,7 +222,8 @@ export default function AdminActivity() {
         <div>
           <h1 className="text-3xl font-semibold text-espresso">Activity Log</h1>
           <p className="mt-2 text-sm text-cocoa/70">
-            Saved dashboard activity grouped by day so we can review what changed and when.
+            Saved dashboard activity grouped by day so we can review what
+            changed and when.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -225,7 +239,8 @@ export default function AdminActivity() {
           <div>
             <h2 className="text-lg font-semibold text-espresso">Filters</h2>
             <p className="mt-1 text-xs text-cocoa/60">
-              Filter by action type, role, date range, or any keyword from the saved activity.
+              Filter by action type, role, date range, or any keyword from the
+              saved activity.
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
@@ -236,10 +251,10 @@ export default function AdminActivity() {
                 size="sm"
                 onClick={() =>
                   setFilters({
-                    search: '',
-                    event: 'All',
-                    role: 'All',
-                    dateRange: 'All',
+                    search: "",
+                    event: "All",
+                    role: "All",
+                    dateRange: "All",
                   })
                 }
               >
@@ -269,7 +284,9 @@ export default function AdminActivity() {
             </span>
             <SelectMenu
               value={filters.event}
-              onChange={(value) => setFilters((prev) => ({ ...prev, event: value }))}
+              onChange={(value) =>
+                setFilters((prev) => ({ ...prev, event: value }))
+              }
               options={eventOptions}
             />
           </label>
@@ -280,7 +297,9 @@ export default function AdminActivity() {
             </span>
             <SelectMenu
               value={filters.role}
-              onChange={(value) => setFilters((prev) => ({ ...prev, role: value }))}
+              onChange={(value) =>
+                setFilters((prev) => ({ ...prev, role: value }))
+              }
               options={roleOptions}
             />
           </label>
@@ -291,12 +310,14 @@ export default function AdminActivity() {
             </span>
             <SelectMenu
               value={filters.dateRange}
-              onChange={(value) => setFilters((prev) => ({ ...prev, dateRange: value }))}
+              onChange={(value) =>
+                setFilters((prev) => ({ ...prev, dateRange: value }))
+              }
               options={[
-                { value: 'All', label: 'All Dates' },
-                { value: 'Today', label: 'Today' },
-                { value: 'Yesterday', label: 'Yesterday' },
-                { value: 'Last7Days', label: 'Last 7 Days' },
+                { value: "All", label: "All Dates" },
+                { value: "Today", label: "Today" },
+                { value: "Yesterday", label: "Yesterday" },
+                { value: "Last7Days", label: "Last 7 Days" },
               ]}
             />
           </label>
@@ -305,7 +326,7 @@ export default function AdminActivity() {
 
       {error && (
         <p className="form-error mt-6">
-          {getApiErrorMessage(error, 'Failed to load activity log.')}
+          {getApiErrorMessage(error, "Failed to load activity log.")}
         </p>
       )}
 
@@ -319,8 +340,8 @@ export default function AdminActivity() {
         <div className="mt-6 card p-6">
           <p className="text-sm text-cocoa/70">
             {hasActiveFilters
-              ? 'No activity matches the current filters.'
-              : 'No saved activity yet.'}
+              ? "No activity matches the current filters."
+              : "No saved activity yet."}
           </p>
         </div>
       )}
@@ -348,7 +369,7 @@ export default function AdminActivity() {
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <p className="font-semibold text-espresso">
-                      {entry.summary || 'Dashboard activity recorded'}
+                      {entry.summary || "Dashboard activity recorded"}
                     </p>
                     <span className="text-xs text-cocoa/60">
                       {formatTime(entry.occurredAt)}
@@ -358,14 +379,16 @@ export default function AdminActivity() {
                   <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-cocoa/60">
                     {entry.actor?.role && (
                       <span>
-                        By {entry.actor.fullName || 'User'} ({entry.actor.role})
+                        By {entry.actor.fullName || "User"} ({entry.actor.role})
                       </span>
                     )}
                     {entry.details?.subject && (
                       <Badge variant="secondary">{entry.details.subject}</Badge>
                     )}
                     {entry.details?.status && (
-                      <Badge variant="outline">Status: {entry.details.status}</Badge>
+                      <Badge variant="outline">
+                        Status: {entry.details.status}
+                      </Badge>
                     )}
                     {entry.event && <Badge>{entry.event}</Badge>}
                   </div>
@@ -376,5 +399,5 @@ export default function AdminActivity() {
         ))}
       </div>
     </section>
-  )
+  );
 }

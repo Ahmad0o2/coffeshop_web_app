@@ -1,20 +1,20 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
-import MainLayout from './layouts/MainLayout'
-import Home from './pages/Home'
-import Menu from './pages/Menu'
-import ProductDetail from './pages/ProductDetail'
-import Cart from './pages/Cart'
-import Checkout from './pages/Checkout'
-import OrderStatus from './pages/OrderStatus'
-import Profile from './pages/Profile'
-import Rewards from './pages/Rewards'
-import Points from './pages/Points'
-import Events from './pages/Events'
-import AdminDashboard from './pages/AdminDashboard'
-import AdminActivity from './pages/AdminActivity'
-import Gallery from './pages/Gallery'
-import Location from './pages/Location'
-import NotFound from './pages/NotFound'
+import { Routes, Route, Navigate } from "react-router-dom";
+import MainLayout from "./layouts/MainLayout";
+import Home from "./pages/Home";
+import Menu from "./pages/Menu";
+import ProductDetail from "./pages/ProductDetail";
+import Cart from "./pages/Cart";
+import Checkout from "./pages/Checkout";
+import OrderStatus from "./pages/OrderStatus";
+import Profile from "./pages/Profile";
+import Rewards from "./pages/Rewards";
+import Points from "./pages/Points";
+import Events from "./pages/Events";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminActivity from "./pages/AdminActivity";
+import Gallery from "./pages/Gallery";
+import Location from "./pages/Location";
+import NotFound from "./pages/NotFound";
 
 function App() {
   return (
@@ -38,7 +38,7 @@ function App() {
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
-  )
+  );
 }
 
-export default App
+export default App;
