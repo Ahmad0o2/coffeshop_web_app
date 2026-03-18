@@ -67,6 +67,18 @@ const parseInventoryNumber = (value, fallback = undefined) => {
   return parsed
 }
 
+const parseBooleanFlag = (value, fallback = undefined) => {
+  if (value === undefined || value === null || value === '') {
+    return fallback
+  }
+
+  if (typeof value === 'boolean') return value
+  if (value === 'true') return true
+  if (value === 'false') return false
+
+  return fallback
+}
+
 const buildSizePrices = (product) => {
   if (product?.sizePrices?.length) return product.sizePrices
   if (product?.sizeOptions?.length && Number.isFinite(product.price)) {
@@ -230,7 +242,7 @@ export const createProduct = asyncHandler(async (req, res) => {
     sizeOptions,
     sizePrices,
     addOns: parseList(req.body.addOns),
-    isAvailable: req.body.isAvailable !== 'false',
+    isAvailable: parseBooleanFlag(req.body.isAvailable, true),
     inventoryQuantity: parseInventoryNumber(req.body.inventoryQuantity, null),
     lowStockThreshold: parseInventoryNumber(req.body.lowStockThreshold, 5),
   }
@@ -275,7 +287,7 @@ export const updateProduct = asyncHandler(async (req, res) => {
     sizeOptions,
     sizePrices,
     addOns: req.body.addOns ? parseList(req.body.addOns) : undefined,
-    isAvailable: req.body.isAvailable ? req.body.isAvailable !== 'false' : undefined,
+    isAvailable: parseBooleanFlag(req.body.isAvailable, undefined),
     inventoryQuantity:
       req.body.inventoryQuantity !== undefined
         ? parseInventoryNumber(req.body.inventoryQuantity, null)

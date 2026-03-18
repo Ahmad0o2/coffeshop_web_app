@@ -210,6 +210,41 @@ const buildInventoryDraft = (product) => ({
   isAvailable: product?.isAvailable !== false,
 });
 
+const normalizeInventoryDraft = (draft) => {
+  const inventoryQuantity = draft.trackInventory
+    ? draft.inventoryQuantity === ""
+      ? null
+      : Number(draft.inventoryQuantity)
+    : null;
+  const lowStockThreshold =
+    draft.lowStockThreshold === "" ? 5 : Number(draft.lowStockThreshold);
+
+  return {
+    inventoryQuantity:
+      Number.isInteger(inventoryQuantity) && inventoryQuantity >= 0
+        ? inventoryQuantity
+        : null,
+    lowStockThreshold:
+      Number.isInteger(lowStockThreshold) && lowStockThreshold >= 0
+        ? lowStockThreshold
+        : 5,
+  };
+};
+
+const getInventoryDraftStatusLabel = (draft) => {
+  const normalized = normalizeInventoryDraft(draft);
+
+  if (!draft.isAvailable) return "Unavailable";
+  if (!draft.trackInventory) return "Open inventory";
+  if (draft.inventoryQuantity === "") return "Stock count required";
+  if (normalized.inventoryQuantity === null) return "Invalid stock count";
+  if (normalized.inventoryQuantity <= 0) return "Out of stock";
+  if (normalized.inventoryQuantity <= normalized.lowStockThreshold) {
+    return "Low stock";
+  }
+  return "Tracked";
+};
+
 const hasInventoryDraftChanges = (product, draft) => {
   const current = buildInventoryDraft(product);
   return (
@@ -1161,7 +1196,7 @@ export default function AdminDashboard() {
       await api.put(`/admin/products/${product._id}`, {
         inventoryQuantity,
         lowStockThreshold,
-        isAvailable: draft.isAvailable,
+        isAvailable: String(draft.isAvailable),
       });
       await refetchProducts();
     } catch (err) {
@@ -3017,6 +3052,7 @@ export default function AdminDashboard() {
                     const draft =
                       inventoryDrafts[product._id] ||
                       buildInventoryDraft(product);
+                    const normalizedDraft = normalizeInventoryDraft(draft);
                     const inventoryError = inventoryErrors[product._id];
                     const isSavingInventory = Boolean(
                       inventorySavingIds[product._id],
@@ -3025,13 +3061,31 @@ export default function AdminDashboard() {
                       product,
                       draft,
                     );
-                    const statusClass = isProductOutOfStock(product)
-                      ? "border border-rose-200/80 bg-rose-50 text-rose-700"
-                      : isProductLowStock(product)
-                        ? "border border-amber-200/80 bg-amber-50 text-amber-700"
-                        : isDayTheme
-                          ? "border border-[#3f7674]/15 bg-[#edf6f5] text-[#315f5e]"
-                          : "border border-gold/20 bg-obsidian/55 text-espresso";
+                    const draftStatusLabel = getInventoryDraftStatusLabel(draft);
+                    const statusClass = !draft.isAvailable
+                      ? "border border-slate-200/80 bg-slate-50 text-slate-700"
+                      : draft.trackInventory &&
+                          draft.inventoryQuantity !== "" &&
+                          normalizedDraft.inventoryQuantity !== null &&
+                          normalizedDraft.inventoryQuantity <= 0
+                        ? "border border-rose-200/80 bg-rose-50 text-rose-700"
+                        : draft.trackInventory &&
+                            draft.inventoryQuantity !== "" &&
+                            normalizedDraft.inventoryQuantity !== null &&
+                            normalizedDraft.inventoryQuantity <=
+                              normalizedDraft.lowStockThreshold
+                          ? "border border-amber-200/80 bg-amber-50 text-amber-700"
+                          : isDayTheme
+                            ? "border border-[#3f7674]/15 bg-[#edf6f5] text-[#315f5e]"
+                            : "border border-gold/20 bg-obsidian/55 text-espresso";
+                    const inventoryPreviewLabel = draft.trackInventory
+                      ? draft.inventoryQuantity === ""
+                        ? "Stock count required"
+                        : normalizedDraft.inventoryQuantity === null
+                          ? "Invalid stock count"
+                          : `${normalizedDraft.inventoryQuantity} in stock`
+                      : "Open inventory";
+                    const thresholdPreviewLabel = `Low stock at ${normalizedDraft.lowStockThreshold}`;
 
                     return (
                       <div
@@ -3066,14 +3120,11 @@ export default function AdminDashboard() {
                                 </p>
                                 <div className="mt-2 flex flex-wrap gap-2">
                                   <Badge>
-                                    {draft.trackInventory
-                                      ? `${product.inventoryQuantity ?? 0} in stock`
-                                      : "Open inventory"}
+                                    {inventoryPreviewLabel}
                                   </Badge>
-                                  <Badge>
-                                    Low stock at{" "}
-                                    {product.lowStockThreshold ?? 5}
-                                  </Badge>
+                                  {draft.trackInventory && (
+                                    <Badge>{thresholdPreviewLabel}</Badge>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -3083,15 +3134,7 @@ export default function AdminDashboard() {
                                 statusClass,
                               )}
                             >
-                              {product.isAvailable === false
-                                ? "Unavailable"
-                                : isProductOutOfStock(product)
-                                  ? "Out of stock"
-                                  : isProductLowStock(product)
-                                    ? "Low stock"
-                                    : draft.trackInventory
-                                      ? "Tracked"
-                                      : "Open inventory"}
+                              {draftStatusLabel}
                             </span>
                           </div>
 
@@ -3146,6 +3189,12 @@ export default function AdminDashboard() {
                                 />
                                 <span>Available to order</span>
                               </label>
+                              {!draft.isAvailable && (
+                                <p className="text-[11px] leading-5 text-cocoa/60">
+                                  This item will stay hidden from orders until
+                                  you re-enable availability.
+                                </p>
+                              )}
                             </div>
 
                             <div className="grid gap-3 md:grid-cols-2">
