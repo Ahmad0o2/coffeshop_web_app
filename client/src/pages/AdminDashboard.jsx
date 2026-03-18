@@ -1193,11 +1193,15 @@ export default function AdminDashboard() {
         );
       }
 
-      await api.put(`/admin/products/${product._id}`, {
-        inventoryQuantity,
-        lowStockThreshold,
-        isAvailable: String(draft.isAvailable),
-      });
+      const formData = new FormData();
+      formData.append(
+        "inventoryQuantity",
+        inventoryQuantity === null ? "" : String(inventoryQuantity),
+      );
+      formData.append("lowStockThreshold", String(lowStockThreshold));
+      formData.append("isAvailable", String(draft.isAvailable));
+
+      await api.put(`/admin/products/${product._id}`, formData);
       await refetchProducts();
     } catch (err) {
       setInventoryErrors((prev) => ({
