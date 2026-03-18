@@ -19,6 +19,7 @@ const fetchRewardHistory = async () => {
   const { data } = await api.get("/rewards/history");
   return data.redemptions || [];
 };
+const defaultLogoSrc = "/brand_logo.webp";
 
 export default function Navbar() {
   const { items, lastAdded, selectedRewardRedemptions } = useCart();
@@ -195,21 +196,24 @@ export default function Navbar() {
   const handleCloseMenu = () => {
     setOpen(false);
   };
+  const logoSrc = settings?.logoUrl || defaultLogoSrc;
+  const handleLogoError = (event) => {
+    if (event.currentTarget.src.endsWith(defaultLogoSrc)) return;
+    event.currentTarget.src = defaultLogoSrc;
+  };
 
   return (
     <>
       <header className={headerClass}>
         <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
           <Link to="/" className="flex items-center gap-3">
-            {settings?.logoUrl ? (
-              <img
-                src={settings.logoUrl}
-                alt="Cortina.D logo"
-                className="h-10 w-10 rounded-full object-cover"
-              />
-            ) : (
-              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-obsidian via-caramel to-gold" />
-            )}
+            <img
+              src={logoSrc}
+              alt="Cortina.D logo"
+              className="h-10 w-10 rounded-full object-cover"
+              loading="eager"
+              onError={handleLogoError}
+            />
             <div>
               <p className={brandTitleClass}>Cortina.D</p>
               <p className={brandSubtitleClass}>Coffee House</p>

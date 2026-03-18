@@ -1,9 +1,13 @@
 export function PulseLogoLoader({ label = "Loading Cortina.D..." }) {
   return (
     <div className="flex min-h-[40vh] flex-col items-center justify-center gap-5">
-      <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-gold via-caramel to-espresso shadow-card">
-        <div className="absolute inset-0 rounded-full bg-gold/30 animate-ping" />
-        <div className="relative h-10 w-10 rounded-full bg-obsidian/70" />
+      <div className="flex h-24 w-24 items-center justify-center rounded-full border border-gold/20 bg-obsidian/60 p-2 shadow-card">
+        <img
+          src="/brand_logo.webp"
+          alt="Cortina.D logo"
+          className="h-full w-full rounded-full object-cover"
+          loading="eager"
+        />
       </div>
       <p className="text-sm font-semibold tracking-[0.24em] text-cocoa/70 uppercase">
         {label}
