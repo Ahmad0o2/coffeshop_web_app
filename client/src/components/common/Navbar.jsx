@@ -13,7 +13,7 @@ import {
   SunIcon,
 } from "./Icons";
 import { Button } from "../ui/button";
-import { useTheme } from "../../context/ThemeContext";
+import useTheme from "../../hooks/useTheme";
 
 const fetchRewardHistory = async () => {
   const { data } = await api.get("/rewards/history");
@@ -26,7 +26,10 @@ export default function Navbar() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
-  const [isDesktopViewport, setIsDesktopViewport] = useState(false);
+  const [isDesktopViewport, setIsDesktopViewport] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(min-width: 1024px)").matches;
+  });
   const { data: settings } = useSettings();
   const { theme, toggleTheme } = useTheme();
   const itemCount =
@@ -154,8 +157,6 @@ export default function Navbar() {
 
     const mediaQuery = window.matchMedia("(min-width: 1024px)");
     const syncViewport = (event) => setIsDesktopViewport(event.matches);
-
-    setIsDesktopViewport(mediaQuery.matches);
 
     if (typeof mediaQuery.addEventListener === "function") {
       mediaQuery.addEventListener("change", syncViewport);

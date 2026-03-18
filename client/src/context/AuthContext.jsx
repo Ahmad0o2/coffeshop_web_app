@@ -1,8 +1,7 @@
-import { createContext, useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import api from '../services/api'
 import { io } from 'socket.io-client'
-
-export const AuthContext = createContext()
+import { AuthContext } from './auth-context'
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || 'http://localhost:5000'
 

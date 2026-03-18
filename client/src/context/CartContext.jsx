@@ -1,29 +1,45 @@
-import { createContext, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { flushSync } from 'react-dom'
 import { getUnitPrice } from '../utils/pricing'
+import { CartContext } from './cart-context'
 
-export const CartContext = createContext()
+const persistItems = (nextItems) => {
+  try {
+    localStorage.setItem('cartItems', JSON.stringify(nextItems))
+  } catch {
+    // Ignore storage write failures and keep in-memory state working.
+  }
+}
+
+const persistSelectedRewardRedemptions = (nextSelectedRewardRedemptions) => {
+  try {
+    localStorage.setItem(
+      'selectedRewardRedemptions',
+      JSON.stringify(nextSelectedRewardRedemptions)
+    )
+  } catch {
+    // Ignore storage write failures and keep in-memory state working.
+  }
+}
+
+const buildSignature = (productId, selectedSize = '', selectedAddOns = []) =>
+  `${productId}-${selectedSize || 'Regular'}-${[...selectedAddOns]
+    .sort()
+    .join('|')}`
+
+const createLineId = () =>
+  globalThis.crypto?.randomUUID?.() ||
+  `cart-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+
+const syncStateUpdate = (updater) => {
+  try {
+    flushSync(updater)
+  } catch {
+    updater()
+  }
+}
 
 export function CartProvider({ children }) {
-  const persistItems = (nextItems) => {
-    try {
-      localStorage.setItem('cartItems', JSON.stringify(nextItems))
-    } catch {
-      // Ignore storage write failures and keep in-memory state working.
-    }
-  }
-
-  const persistSelectedRewardRedemptions = (nextSelectedRewardRedemptions) => {
-    try {
-      localStorage.setItem(
-        'selectedRewardRedemptions',
-        JSON.stringify(nextSelectedRewardRedemptions)
-      )
-    } catch {
-      // Ignore storage write failures and keep in-memory state working.
-    }
-  }
-
   const [items, setItems] = useState(() => {
     try {
       const stored = localStorage.getItem('cartItems')
@@ -42,24 +58,7 @@ export function CartProvider({ children }) {
     }
   })
 
-  const buildSignature = (productId, selectedSize = '', selectedAddOns = []) =>
-    `${productId}-${selectedSize || 'Regular'}-${[...selectedAddOns]
-      .sort()
-      .join('|')}`
-
-  const createLineId = () =>
-    globalThis.crypto?.randomUUID?.() ||
-    `cart-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-
-  const syncStateUpdate = (updater) => {
-    try {
-      flushSync(updater)
-    } catch {
-      updater()
-    }
-  }
-
-  const addItem = (product, options = {}) => {
+  const addItem = useCallback((product, options = {}) => {
     const selectedSize = options.selectedSize || ''
     const selectedAddOns = options.selectedAddOns || []
     const signature = buildSignature(product._id, selectedSize, selectedAddOns)
@@ -106,7 +105,7 @@ export function CartProvider({ children }) {
         })
       }
     })
-  }
+  }, [])
 
   useEffect(() => {
     if (!lastAdded) return undefined
@@ -122,7 +121,7 @@ export function CartProvider({ children }) {
     persistSelectedRewardRedemptions(selectedRewardRedemptions)
   }, [selectedRewardRedemptions])
 
-  const updateQuantity = (itemId, quantity) => {
+  const updateQuantity = useCallback((itemId, quantity) => {
     if (quantity <= 0) {
       syncStateUpdate(() => {
         setItems((prev) => {
@@ -153,9 +152,9 @@ export function CartProvider({ children }) {
         return nextItems
       })
     })
-  }
+  }, [])
 
-  const updateOptions = (itemId, options) => {
+  const updateOptions = useCallback((itemId, options) => {
     syncStateUpdate(() => {
       setItems((prev) => {
         const currentIndex = prev.findIndex((item) => item.id === itemId)
@@ -199,9 +198,9 @@ export function CartProvider({ children }) {
         return nextItems
       })
     })
-  }
+  }, [])
 
-  const removeItem = (itemId) => {
+  const removeItem = useCallback((itemId) => {
     syncStateUpdate(() => {
       setItems((prev) => {
         const nextItems = prev.filter((item) => item.id !== itemId)
@@ -209,9 +208,9 @@ export function CartProvider({ children }) {
         return nextItems
       })
     })
-  }
+  }, [])
 
-  const toggleRewardRedemption = (redemptionId) => {
+  const toggleRewardRedemption = useCallback((redemptionId) => {
     syncStateUpdate(() => {
       setSelectedRewardRedemptions((prev) => {
         const next = prev.includes(redemptionId)
@@ -221,23 +220,23 @@ export function CartProvider({ children }) {
         return next
       })
     })
-  }
+  }, [])
 
-  const clearRewardRedemptions = () => {
+  const clearRewardRedemptions = useCallback(() => {
     persistSelectedRewardRedemptions([])
     syncStateUpdate(() => {
       setSelectedRewardRedemptions([])
     })
-  }
+  }, [])
 
-  const clearCart = () => {
+  const clearCart = useCallback(() => {
     persistItems([])
     persistSelectedRewardRedemptions([])
     syncStateUpdate(() => {
       setItems([])
       setSelectedRewardRedemptions([])
     })
-  }
+  }, [])
 
   const total = useMemo(
     () =>
@@ -264,7 +263,19 @@ export function CartProvider({ children }) {
       total,
       lastAdded,
     }),
-    [items, selectedRewardRedemptions, total, lastAdded]
+    [
+      items,
+      addItem,
+      updateQuantity,
+      updateOptions,
+      removeItem,
+      clearCart,
+      selectedRewardRedemptions,
+      toggleRewardRedemption,
+      clearRewardRedemptions,
+      total,
+      lastAdded,
+    ]
   )
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>

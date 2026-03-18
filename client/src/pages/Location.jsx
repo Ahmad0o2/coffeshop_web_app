@@ -1,4 +1,4 @@
-import { useTheme } from "../context/ThemeContext";
+import useTheme from "../hooks/useTheme";
 import { MapPinIcon, SparkIcon } from "../components/common/Icons";
 import { Button } from "../components/ui/button";
 import { WorldMap } from "../components/ui/map";

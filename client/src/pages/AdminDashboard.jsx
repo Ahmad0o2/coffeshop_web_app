@@ -5,7 +5,7 @@ import { io } from 'socket.io-client'
 import api from '../services/api'
 import useAuth from '../hooks/useAuth'
 import useSettings from '../hooks/useSettings'
-import { useTheme } from '../context/ThemeContext'
+import useTheme from '../hooks/useTheme'
 import { Badge } from '../components/ui/badge'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -1623,34 +1623,27 @@ export default function AdminDashboard() {
   const outOfStockProductsCount = products.filter((product) =>
     isProductOutOfStock(product)
   ).length
-  const inventoryProducts = useMemo(
-    () =>
-      [...products].sort((a, b) => {
-        const score = (product) => {
-          if (isProductOutOfStock(product)) return 0
-          if (isProductLowStock(product)) return 1
-          if (product.inventoryQuantity !== null && product.inventoryQuantity !== undefined)
-            return 2
-          return 3
-        }
+  const inventoryProducts = [...products].sort((a, b) => {
+    const score = (product) => {
+      if (isProductOutOfStock(product)) return 0
+      if (isProductLowStock(product)) return 1
+      if (product.inventoryQuantity !== null && product.inventoryQuantity !== undefined)
+        return 2
+      return 3
+    }
 
-        const scoreDifference = score(a) - score(b)
-        if (scoreDifference !== 0) return scoreDifference
-        return a.name.localeCompare(b.name)
-      }),
-    [products]
-  )
-  const inventoryCategoryOptions = useMemo(
-    () => [
-      { label: 'All Categories', value: 'All Categories' },
-      ...categories.map((category) => ({
-        label: category.name,
-        value: category._id,
-      })),
-    ],
-    [categories]
-  )
-  const filteredInventoryProducts = useMemo(() => {
+    const scoreDifference = score(a) - score(b)
+    if (scoreDifference !== 0) return scoreDifference
+    return a.name.localeCompare(b.name)
+  })
+  const inventoryCategoryOptions = [
+    { label: 'All Categories', value: 'All Categories' },
+    ...categories.map((category) => ({
+      label: category.name,
+      value: category._id,
+    })),
+  ]
+  const filteredInventoryProducts = (() => {
     const search = inventoryFilters.search.trim().toLowerCase()
 
     return inventoryProducts.filter((product) => {
@@ -1668,7 +1661,7 @@ export default function AdminDashboard() {
 
       return matchesSearch && matchesStatus && matchesCategory
     })
-  }, [categoryMap, inventoryFilters, inventoryProducts])
+  })()
   const isInventoryFilterDirty =
     inventoryFilters.search.trim() !== '' ||
     inventoryFilters.status !== 'All Items' ||
@@ -1724,7 +1717,7 @@ export default function AdminDashboard() {
       : null,
   ].filter(Boolean)
 
-  const activeDashboardStat = useMemo(() => {
+  const activeDashboardStat = (() => {
     const statKey =
       activeTab === 'manage'
         ? 'team'
@@ -1734,7 +1727,7 @@ export default function AdminDashboard() {
 
     if (!statKey) return null
     return dashboardStats.find((stat) => stat.key === statKey) || null
-  }, [activeTab, dashboardStats])
+  })()
 
   const dashboardTabs = [
     canManageOrders
@@ -1813,18 +1806,15 @@ export default function AdminDashboard() {
 
   const activeTabMeta =
     dashboardTabs.find((tab) => tab.key === activeTab) || dashboardTabs[0] || null
-  const setActiveTab = useCallback(
-    (nextTab) => {
-      const nextParams = new URLSearchParams(searchParams)
-      if (nextTab === (availableTabs[0] || 'orders')) {
-        nextParams.delete('tab')
-      } else {
-        nextParams.set('tab', nextTab)
-      }
-      setSearchParams(nextParams, { replace: true })
-    },
-    [availableTabs, searchParams, setSearchParams]
-  )
+  const setActiveTab = (nextTab) => {
+    const nextParams = new URLSearchParams(searchParams)
+    if (nextTab === (availableTabs[0] || 'orders')) {
+      nextParams.delete('tab')
+    } else {
+      nextParams.set('tab', nextTab)
+    }
+    setSearchParams(nextParams, { replace: true })
+  }
   const handleDashboardTabChange = (nextTab) => {
     setActiveTab(nextTab)
     setIsMobileNavOpen(false)
@@ -1952,7 +1942,7 @@ export default function AdminDashboard() {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
         </div>
       )}
 
@@ -2979,6 +2969,7 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+      </div>
       )}
 
       {activeTab === 'rewards' && (

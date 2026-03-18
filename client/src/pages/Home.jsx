@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import useAuth from "../hooks/useAuth";
 import useSettings from "../hooks/useSettings";
 import useRealtimeInvalidation from "../hooks/useRealtimeInvalidation";
-import { useTheme } from "../context/ThemeContext";
+import useTheme from "../hooks/useTheme";
 import CircularGallery from "../components/home/CircularGallery";
 import { MapPinIcon, SparkIcon } from "../components/common/Icons";
 import { Badge } from "../components/ui/badge";

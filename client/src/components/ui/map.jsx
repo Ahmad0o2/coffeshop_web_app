@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import DottedMap from 'dotted-map'
 
-import { useTheme } from '../../context/ThemeContext'
+import useTheme from '../../hooks/useTheme'
 
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 
@@ -34,8 +34,13 @@ export function WorldMap({
   const [hoveredLocation, setHoveredLocation] = useState(null)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
+  const [isDragging, setIsDragging] = useState(false)
   const { theme } = useTheme()
   const isDark = theme !== 'day'
+  const MotionPath = motion.path
+  const MotionCircle = motion.circle
+  const MotionGroup = motion.g
+  const MotionDiv = motion.div
 
   const map = useMemo(
     () =>
@@ -105,26 +110,31 @@ export function WorldMap({
     .filter(Boolean)
     .join(' ')
 
-  const getPanBounds = () => {
+  const getPanBounds = useCallback((zoomLevel = zoom) => {
     const container = containerRef.current
-    if (!container || zoom <= 1) {
+    if (!container || zoomLevel <= 1) {
       return { maxX: 0, maxY: 0 }
     }
 
     const { clientWidth, clientHeight } = container
     return {
-      maxX: ((clientWidth * zoom) - clientWidth) / 2,
-      maxY: ((clientHeight * zoom) - clientHeight) / 2,
+      maxX: ((clientWidth * zoomLevel) - clientWidth) / 2,
+      maxY: ((clientHeight * zoomLevel) - clientHeight) / 2,
     }
-  }
+  }, [zoom])
 
-  const clampPan = (nextPan) => {
-    const { maxX, maxY } = getPanBounds()
+  const clampPan = useCallback((nextPan, zoomLevel = zoom) => {
+    const { maxX, maxY } = getPanBounds(zoomLevel)
     return {
       x: clamp(nextPan.x, -maxX, maxX),
       y: clamp(nextPan.y, -maxY, maxY),
     }
-  }
+  }, [getPanBounds, zoom])
+
+  const applyZoom = useCallback((nextZoom) => {
+    setZoom(nextZoom)
+    setPan((currentPan) => clampPan(currentPan, nextZoom))
+  }, [clampPan])
 
   const handlePointerDown = (event) => {
     if (event.pointerType === 'mouse' && event.button !== 0) return
@@ -138,6 +148,7 @@ export function WorldMap({
       originY: pan.y,
     }
     movedDuringDragRef.current = false
+    setIsDragging(true)
     event.currentTarget.setPointerCapture?.(event.pointerId)
   }
 
@@ -162,26 +173,33 @@ export function WorldMap({
 
     dragState.current.active = false
     dragState.current.pointerId = null
+    setIsDragging(false)
     event.currentTarget.releasePointerCapture?.(event.pointerId)
   }
 
   const handleWheel = (event) => {
     event.preventDefault()
 
-    setZoom((currentZoom) =>
-      clamp(Number((currentZoom + (event.deltaY < 0 ? 0.14 : -0.14)).toFixed(2)), minZoom, maxZoom)
+    const nextZoom = clamp(
+      Number((zoom + (event.deltaY < 0 ? 0.14 : -0.14)).toFixed(2)),
+      minZoom,
+      maxZoom
     )
+    applyZoom(nextZoom)
   }
 
   const zoomIn = () => {
-    setZoom((currentZoom) => clamp(Number((currentZoom + 0.2).toFixed(2)), minZoom, maxZoom))
+    const nextZoom = clamp(Number((zoom + 0.2).toFixed(2)), minZoom, maxZoom)
+    applyZoom(nextZoom)
   }
 
   const zoomOut = () => {
-    setZoom((currentZoom) => clamp(Number((currentZoom - 0.2).toFixed(2)), minZoom, maxZoom))
+    const nextZoom = clamp(Number((zoom - 0.2).toFixed(2)), minZoom, maxZoom)
+    applyZoom(nextZoom)
   }
 
   const resetView = () => {
+    setIsDragging(false)
     setZoom(1)
     setPan({ x: 0, y: 0 })
   }
@@ -190,10 +208,6 @@ export function WorldMap({
     if (movedDuringDragRef.current) return
     marker.onClick?.()
   }
-
-  useEffect(() => {
-    setPan((currentPan) => clampPan(currentPan))
-  }, [zoom])
 
   useEffect(() => {
     const container = containerRef.current
@@ -217,7 +231,7 @@ export function WorldMap({
         style={focusTransform || undefined}
       >
         <div
-          className={`absolute inset-0 ${dragState.current.active ? 'cursor-grabbing' : 'cursor-grab'}`}
+          className={`absolute inset-0 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
           style={{
             transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
             transformOrigin: 'center center',
@@ -286,7 +300,7 @@ export function WorldMap({
 
             return (
               <g key={`path-group-${index}`}>
-                <motion.path
+                <MotionPath
                   d={path}
                   fill="none"
                   stroke="url(#location-map-path-gradient)"
@@ -319,7 +333,7 @@ export function WorldMap({
                 />
 
                 {loop ? (
-                  <motion.circle
+                  <MotionCircle
                     r="4"
                     fill={lineColor}
                     initial={{ offsetDistance: '0%', opacity: 0 }}
@@ -350,7 +364,7 @@ export function WorldMap({
             return (
               <g key={`points-group-${index}`}>
                 <g key={`start-${index}`}>
-                  <motion.g
+                  <MotionGroup
                     onHoverStart={() => setHoveredLocation(dot.start.label || `Location ${index + 1}`)}
                     onHoverEnd={() => setHoveredLocation(null)}
                     className="cursor-pointer"
@@ -389,10 +403,10 @@ export function WorldMap({
                         repeatCount="indefinite"
                       />
                     </circle>
-                  </motion.g>
+                  </MotionGroup>
 
                   {showLabels && dot.start.label ? (
-                    <motion.g
+                    <MotionGroup
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.5 * index + 0.3, duration: 0.5 }}
@@ -417,12 +431,12 @@ export function WorldMap({
                           </span>
                         </div>
                       </foreignObject>
-                    </motion.g>
+                    </MotionGroup>
                   ) : null}
                 </g>
 
                 <g key={`end-${index}`}>
-                  <motion.g
+                  <MotionGroup
                     onHoverStart={() => setHoveredLocation(dot.end.label || `Destination ${index + 1}`)}
                     onHoverEnd={() => setHoveredLocation(null)}
                     className="cursor-pointer"
@@ -461,10 +475,10 @@ export function WorldMap({
                         repeatCount="indefinite"
                       />
                     </circle>
-                  </motion.g>
+                  </MotionGroup>
 
                   {showLabels && dot.end.label ? (
-                    <motion.g
+                    <MotionGroup
                       initial={{ opacity: 0, y: 5 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.5 * index + 0.5, duration: 0.5 }}
@@ -489,7 +503,7 @@ export function WorldMap({
                           </span>
                         </div>
                       </foreignObject>
-                    </motion.g>
+                    </MotionGroup>
                   ) : null}
                 </g>
               </g>
@@ -505,7 +519,7 @@ export function WorldMap({
 
             return (
               <g key={`marker-${index}`}>
-                <motion.g
+                <MotionGroup
                   onHoverStart={() => setHoveredLocation(marker.label || `Location ${index + 1}`)}
                   onHoverEnd={() => setHoveredLocation(null)}
                   onPointerDown={(event) => {
@@ -582,10 +596,10 @@ export function WorldMap({
                       repeatCount="indefinite"
                     />
                   </circle>
-                </motion.g>
+                </MotionGroup>
 
                 {showLabels && marker.label ? (
-                  <motion.g
+                  <MotionGroup
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.2, duration: 0.5 }}
@@ -639,7 +653,7 @@ export function WorldMap({
                         </span>
                       </div>
                     </foreignObject>
-                  </motion.g>
+                  </MotionGroup>
                 ) : null}
               </g>
             )
@@ -703,7 +717,7 @@ export function WorldMap({
 
       <AnimatePresence>
         {hoveredLocation ? (
-          <motion.div
+          <MotionDiv
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
@@ -714,7 +728,7 @@ export function WorldMap({
             }`}
           >
             {hoveredLocation}
-          </motion.div>
+          </MotionDiv>
         ) : null}
       </AnimatePresence>
     </div>
