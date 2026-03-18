@@ -498,25 +498,51 @@ function DashboardSidebarNavItems({
                   >
                     {tab.label}
                   </span>
-                  <span
-                    className={cn(
-                      "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-                      isDayTheme
-                        ? isActive
-                          ? "bg-[#315f5e] text-[#f8fcfc]"
-                          : "bg-[#deeeee] text-[#315f5e]"
-                        : isActive
-                          ? "bg-obsidian/80 text-cream"
-                          : "bg-obsidian/70 text-cocoa/70",
+                  <div className="flex items-center gap-2">
+                    {tab.alertCount > 0 && (
+                      <span
+                        className={cn(
+                          "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                          tab.alertTone === "danger"
+                            ? "border border-rose-200/80 bg-rose-50 text-rose-700"
+                            : "border border-amber-200/80 bg-amber-50 text-amber-700",
+                        )}
+                      >
+                        {tab.alertCount}
+                      </span>
                     )}
-                  >
-                    {tab.count}
-                  </span>
+                    <span
+                      className={cn(
+                        "rounded-full px-2.5 py-1 text-[11px] font-semibold",
+                        isDayTheme
+                          ? isActive
+                            ? "bg-[#315f5e] text-[#f8fcfc]"
+                            : "bg-[#deeeee] text-[#315f5e]"
+                          : isActive
+                            ? "bg-obsidian/80 text-cream"
+                            : "bg-obsidian/70 text-cocoa/70",
+                      )}
+                    >
+                      {tab.count}
+                    </span>
+                  </div>
                 </div>
                 <p className="mt-1 text-[11px] leading-4 text-cocoa/58">
                   {tab.caption}
                 </p>
               </div>
+            )}
+            {isCompact && tab.alertCount > 0 && (
+              <span
+                className={cn(
+                  "absolute right-2 top-2 inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold",
+                  tab.alertTone === "danger"
+                    ? "bg-rose-500 text-white"
+                    : "bg-amber-400 text-obsidian",
+                )}
+              >
+                {tab.alertCount}
+              </span>
             )}
           </button>
         );
@@ -1811,6 +1837,10 @@ export default function AdminDashboard() {
   const outOfStockProductsCount = products.filter((product) =>
     isProductOutOfStock(product),
   ).length;
+  const inventoryAlertCount =
+    lowStockProductsCount + outOfStockProductsCount;
+  const inventoryAlertTone =
+    outOfStockProductsCount > 0 ? "danger" : "warning";
   const inventoryProducts = [...products].sort((a, b) => {
     const score = (product) => {
       if (isProductOutOfStock(product)) return 0;
@@ -1950,6 +1980,8 @@ export default function AdminDashboard() {
           label: "Inventory",
           caption: "Stock and availability",
           count: trackedInventoryProductsCount,
+          alertCount: inventoryAlertCount,
+          alertTone: inventoryAlertTone,
           icon: "inventory",
         }
       : null,
