@@ -10,6 +10,8 @@ import OrderStatus from "../components/order/OrderStatus";
 import { io } from "socket.io-client";
 import { getApiErrorMessage } from "../utils/apiErrors";
 import { ListSkeleton } from "../components/common/PageSkeleton";
+import useTheme from "../hooks/useTheme";
+import { cn } from "../lib/utils";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 const orderDateFilterOptions = ["All Dates", "Today", "Yesterday", "Last 7 Days", "This Month", "This Year"];
@@ -74,6 +76,7 @@ const formatOrderDateTime = (value) => {
 export default function Profile() {
   const { user, login, register, logout, isAuthenticated, refreshProfile } =
     useAuth();
+  const { theme } = useTheme();
   const navigate = useNavigate();
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({
@@ -86,6 +89,31 @@ export default function Profile() {
   const [error, setError] = useState("");
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [orderDayFilter, setOrderDayFilter] = useState("All Dates");
+  const isDayTheme = theme === "day";
+  const orderFiltersCardClass = cn(
+    "rounded-[1.2rem] border p-3 transition-colors",
+    isDayTheme
+      ? "border-[#3f7674]/18 bg-[#fbfdfd] shadow-[0_10px_24px_rgba(34,71,70,0.045)]"
+      : "border-gold/18 bg-[rgba(21,16,14,0.94)] shadow-[0_18px_34px_rgba(10,7,6,0.18)]",
+  );
+  const orderCardClass = cn(
+    "rounded-[1.35rem] border p-4 text-sm transition-colors",
+    isDayTheme
+      ? "border-[#3f7674]/18 bg-[#fbfdfd] shadow-[0_10px_24px_rgba(34,71,70,0.05)]"
+      : "border-gold/18 bg-[rgba(21,16,14,0.96)] shadow-[0_20px_40px_rgba(10,7,6,0.20)]",
+  );
+  const orderLineItemClass = cn(
+    "flex flex-wrap items-center justify-between gap-3 rounded-xl2 border px-3 py-3 transition-colors",
+    isDayTheme
+      ? "border-[#3f7674]/16 bg-[#f3f9f8]"
+      : "border-gold/16 bg-[rgba(30,23,20,0.92)]",
+  );
+  const orderNotesClass = cn(
+    "mt-3 rounded-[1rem] border px-3 py-2.5 text-xs transition-colors",
+    isDayTheme
+      ? "border-[#3f7674]/14 bg-[#eef7f6] text-cocoa/82"
+      : "border-gold/14 bg-[rgba(27,21,18,0.88)] text-cocoa/76",
+  );
 
   const filteredOrders = useMemo(
     () => orders.filter((order) => matchesOrderDateFilter(order.createdAt, orderDayFilter)),
@@ -280,7 +308,7 @@ export default function Profile() {
 
       <div className="mt-6 space-y-3">
         {error && <p className="form-error">{error}</p>}
-        <div className="rounded-[1.2rem] border border-gold/18 bg-[rgba(21,16,14,0.94)] p-3 shadow-[0_18px_34px_rgba(10,7,6,0.18)]">
+        <div className={orderFiltersCardClass}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cocoa/55">
@@ -308,7 +336,7 @@ export default function Profile() {
           filteredOrders.map((order) => (
             <div
               key={order._id}
-              className="rounded-[1.35rem] border border-gold/18 bg-[rgba(21,16,14,0.96)] p-4 text-sm shadow-[0_20px_40px_rgba(10,7,6,0.20)]"
+              className={orderCardClass}
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -329,7 +357,7 @@ export default function Profile() {
                 {(order.items || []).map((item) => (
                   <div
                     key={item._id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl2 border border-gold/16 bg-[rgba(30,23,20,0.92)] px-3 py-3"
+                    className={orderLineItemClass}
                   >
                     <div className="flex items-center gap-3">
                       {item.productId?.imageUrl ? (
@@ -372,7 +400,7 @@ export default function Profile() {
                 ))}
               </div>
               {order.specialInstructions && (
-                <div className="mt-3 rounded-[1rem] border border-gold/14 bg-[rgba(27,21,18,0.88)] px-3 py-2.5 text-xs text-cocoa/76">
+                <div className={orderNotesClass}>
                   Notes: {order.specialInstructions}
                 </div>
               )}

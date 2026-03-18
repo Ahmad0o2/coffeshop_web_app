@@ -4,6 +4,8 @@ import { io } from "socket.io-client";
 import api from "../services/api";
 import OrderStatus from "../components/order/OrderStatus";
 import { DetailSkeleton } from "../components/common/PageSkeleton";
+import useTheme from "../hooks/useTheme";
+import { cn } from "../lib/utils";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
@@ -23,7 +25,21 @@ const formatOrderDateTime = (value) => {
 
 export default function OrderStatusPage() {
   const { id } = useParams();
+  const { theme } = useTheme();
   const [order, setOrder] = useState(null);
+  const isDayTheme = theme === "day";
+  const orderSummaryClass = cn(
+    "mt-6 space-y-2 rounded-[1.1rem] border px-4 py-3 text-sm transition-colors",
+    isDayTheme
+      ? "border-[#3f7674]/14 bg-[#eef7f6] text-cocoa/82"
+      : "border-gold/14 bg-[rgba(27,21,18,0.88)] text-cocoa/76",
+  );
+  const orderLineItemClass = cn(
+    "flex flex-wrap items-center justify-between gap-3 rounded-xl2 border px-3 py-3 transition-colors",
+    isDayTheme
+      ? "border-[#3f7674]/16 bg-[#f3f9f8]"
+      : "border-gold/16 bg-[rgba(30,23,20,0.92)]",
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -75,7 +91,7 @@ export default function OrderStatusPage() {
         <div className="mt-4">
           <OrderStatus status={order.status} />
         </div>
-        <div className="mt-6 space-y-2 rounded-[1.1rem] border border-gold/14 bg-[rgba(27,21,18,0.88)] px-4 py-3 text-sm text-cocoa/76">
+        <div className={orderSummaryClass}>
           <p>Total: {order.totalAmount?.toFixed(2)} JD</p>
           <p>Status: {order.status}</p>
         </div>
@@ -83,7 +99,7 @@ export default function OrderStatusPage() {
           {(order.items || []).map((item) => (
             <div
               key={item._id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl2 border border-gold/16 bg-[rgba(30,23,20,0.92)] px-3 py-3"
+              className={orderLineItemClass}
             >
               <div className="flex items-center gap-3">
                 {item.productId?.imageUrl ? (
