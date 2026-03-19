@@ -193,6 +193,7 @@ export default function Profile() {
   const [orderEditNotice, setOrderEditNotice] = useState(null);
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
   const [submittingFeedbackOrderId, setSubmittingFeedbackOrderId] = useState("");
+  const [feedbackPromptOrderId, setFeedbackPromptOrderId] = useState("");
   const handledReturnFlowRef = useRef("");
   const isDayTheme = theme === "day";
   const justPlacedOrderId = location.state?.justPlacedOrderId || "";
@@ -450,7 +451,7 @@ export default function Profile() {
     const draft = feedbackDrafts[order._id] || ensureFeedbackDraft(order);
 
     if (!draft.rating) {
-      setError("Please choose a star rating before sending feedback.");
+      setFeedbackPromptOrderId(order._id);
       return;
     }
 
@@ -1256,6 +1257,43 @@ export default function Profile() {
                 {cancellingOrderId === cancelTargetOrderId
                   ? "Cancelling..."
                   : "Yes, Cancel It"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {feedbackPromptOrderId && (
+        <div
+          className={popupBackdropClass}
+          onClick={() => setFeedbackPromptOrderId("")}
+        >
+          <div
+            className={popupPanelClass}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2
+              className={cn(
+                "text-xl font-semibold",
+                isDayTheme ? "text-espresso" : "text-cream",
+              )}
+            >
+              Choose a rating first
+            </h2>
+            <p
+              className={cn(
+                "mt-3 text-sm leading-7",
+                isDayTheme ? "text-cocoa/76" : "text-cocoa/80",
+              )}
+            >
+              Please choose a star rating before sending feedback.
+            </p>
+            <div className="mt-5 flex justify-end">
+              <Button
+                type="button"
+                onClick={() => setFeedbackPromptOrderId("")}
+              >
+                Got It
               </Button>
             </div>
           </div>
