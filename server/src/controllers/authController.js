@@ -47,6 +47,10 @@ const createOtpEmailContent = ({ code, purpose }) => {
     purpose === 'register'
       ? 'Use this one-time code to finish creating your Cortina.D account.'
       : 'Use this one-time code to reset your Cortina.D password.'
+  const helperCopy =
+    purpose === 'register'
+      ? 'Once you confirm the code, your account will be ready and you can sign in right away.'
+      : 'If you did not request a password reset, you can safely ignore this message.'
 
   return {
     subject:
@@ -54,18 +58,32 @@ const createOtpEmailContent = ({ code, purpose }) => {
         ? 'Your Cortina.D sign-up code'
         : 'Your Cortina.D password reset code',
     htmlContent: `
-      <div style="font-family: Arial, sans-serif; padding: 24px; color: #1b1715;">
-        <h2 style="margin: 0 0 12px;">${heading}</h2>
-        <p style="margin: 0 0 16px; line-height: 1.7;">${intro}</p>
-        <div style="display: inline-block; padding: 12px 18px; border-radius: 12px; background: #f2dd9b; font-size: 24px; font-weight: 700; letter-spacing: 0.24em;">
-          ${code}
+      <div style="margin:0;padding:32px 18px;background:#f6f2eb;font-family:Arial,sans-serif;color:#1b1715;">
+        <div style="max-width:560px;margin:0 auto;background:#fffdf9;border:1px solid rgba(104,76,52,0.12);border-radius:24px;overflow:hidden;box-shadow:0 20px 40px rgba(41,29,21,0.08);">
+          <div style="padding:28px 30px;background:linear-gradient(135deg,#17110f 0%,#3b2a21 55%,#8a633f 100%);color:#f7efe4;">
+            <div style="font-size:12px;letter-spacing:0.32em;text-transform:uppercase;opacity:0.8;">Cortina.D</div>
+            <h1 style="margin:14px 0 0;font-size:28px;line-height:1.25;font-weight:700;color:#fff7eb;">${heading}</h1>
+            <p style="margin:14px 0 0;font-size:15px;line-height:1.8;color:#f1e2cf;">${intro}</p>
+          </div>
+          <div style="padding:30px;">
+            <p style="margin:0;font-size:14px;line-height:1.8;color:#5f4a39;">Your one-time verification code is:</p>
+            <div style="margin:18px 0 16px;display:inline-block;padding:14px 20px;border-radius:16px;background:linear-gradient(135deg,#f0d48b 0%,#c28f54 100%);color:#1b1715;font-size:28px;font-weight:700;letter-spacing:0.32em;box-shadow:0 12px 24px rgba(194,143,84,0.26);">
+              ${code}
+            </div>
+            <p style="margin:0;font-size:14px;line-height:1.85;color:#5f4a39;">
+              This code expires in <strong>${OTP_EXPIRY_MINUTES} minutes</strong>.
+            </p>
+            <p style="margin:14px 0 0;font-size:14px;line-height:1.85;color:#5f4a39;">
+              ${helperCopy}
+            </p>
+          </div>
+          <div style="padding:18px 30px;border-top:1px solid rgba(104,76,52,0.1);background:#fbf6ef;font-size:12px;line-height:1.8;color:#7a6553;">
+            This email was sent automatically by Cortina.D. Please do not share this code with anyone.
+          </div>
         </div>
-        <p style="margin: 16px 0 0; line-height: 1.7;">
-          This code expires in ${OTP_EXPIRY_MINUTES} minutes.
-        </p>
       </div>
     `,
-    textContent: `${heading}\n\n${intro}\n\nCode: ${code}\n\nThis code expires in ${OTP_EXPIRY_MINUTES} minutes.`,
+    textContent: `${heading}\n\n${intro}\n\nCode: ${code}\n\nThis code expires in ${OTP_EXPIRY_MINUTES} minutes.\n\n${helperCopy}\n\nThis email was sent automatically by Cortina.D. Please do not share this code with anyone.`,
   }
 }
 
