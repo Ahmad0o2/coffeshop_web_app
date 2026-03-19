@@ -118,7 +118,7 @@ export default function Events() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/orders" replace />
+    return <Navigate to="/sign-in" replace state={{ redirectTo: "/events" }} />
   }
 
   if (isLoading) {

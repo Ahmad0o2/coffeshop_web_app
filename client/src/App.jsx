@@ -7,6 +7,7 @@ import Cart from "./pages/Cart";
 import Checkout from "./pages/Checkout";
 import OrderStatus from "./pages/OrderStatus";
 import Profile from "./pages/Profile";
+import Auth from "./pages/Auth";
 import Rewards from "./pages/Rewards";
 import Points from "./pages/Points";
 import Events from "./pages/Events";
@@ -26,6 +27,7 @@ function App() {
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/orders/:id" element={<OrderStatus />} />
+        <Route path="/sign-in" element={<Auth />} />
         <Route path="/orders" element={<Profile />} />
         <Route path="/profile" element={<Navigate to="/orders" replace />} />
         <Route path="/rewards" element={<Rewards />} />

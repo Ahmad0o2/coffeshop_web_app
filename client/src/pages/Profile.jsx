@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 import { Button } from "../components/ui/button";
@@ -181,18 +181,10 @@ const loadDismissedFeedbackOrderIds = () => {
 };
 
 export default function Profile() {
-  const { user, login, register, isAuthenticated, refreshProfile } =
-    useAuth();
+  const { user, isAuthenticated, refreshProfile } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
-  const [mode, setMode] = useState("login");
-  const [form, setForm] = useState({
-    fullName: "",
-    email: "",
-    phone: "",
-    password: "",
-  });
   const [orders, setOrders] = useState([]);
   const [error, setError] = useState("");
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -500,54 +492,6 @@ export default function Profile() {
     }
   };
 
-  const validateForm = () => {
-    if (mode === "login") {
-      if (!form.email && !form.phone) {
-        return "Enter email, username, or phone to sign in.";
-      }
-      if (!form.password) {
-        return "Password is required.";
-      }
-      return "";
-    }
-    if (!form.fullName) return "Full name is required.";
-    if (!form.email) return "Email is required.";
-    if (!form.phone) return "Phone is required.";
-    if (!form.password) return "Password is required.";
-    return "";
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    try {
-      const validationError = validateForm();
-      if (validationError) {
-        setError(validationError);
-        return;
-      }
-      if (mode === "login") {
-        const data = await login({
-          identifier: form.email || undefined,
-          phone: form.phone || undefined,
-          password: form.password,
-        });
-        navigate(
-          ["Admin", "Staff"].includes(data?.user?.role) ? "/admin" : "/",
-          { replace: true },
-        );
-      } else {
-        const data = await register(form);
-        navigate(
-          ["Admin", "Staff"].includes(data?.user?.role) ? "/admin" : "/",
-          { replace: true },
-        );
-      }
-    } catch (err) {
-      setError(getApiErrorMessage(err, "Authentication failed."));
-    }
-  };
-
   const loadOrders = useCallback(() => {
     setLoadingOrders(true);
     api
@@ -753,59 +697,11 @@ export default function Profile() {
 
   if (!isAuthenticated) {
     return (
-      <section className="section-shell max-w-xl">
-        <h1 className="text-3xl font-semibold text-espresso">Orders</h1>
-        <div className="mt-6 card p-6">
-          <div className="flex gap-2">
-            <button
-              className={`pill ${mode === "login" ? "border-espresso/40" : ""}`}
-              onClick={() => setMode("login")}
-            >
-              Login
-            </button>
-            <button
-              className={`pill ${mode === "register" ? "border-espresso/40" : ""}`}
-              onClick={() => setMode("register")}
-            >
-              Register
-            </button>
-          </div>
-          <form noValidate onSubmit={handleSubmit} className="mt-4 space-y-3">
-            {mode === "register" && (
-              <Input
-                type="text"
-                placeholder="Full name"
-                value={form.fullName}
-                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
-              />
-            )}
-            <Input
-              type={mode === "login" ? "text" : "email"}
-              placeholder={mode === "login" ? "Email or username" : "Email"}
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-            {mode === "register" && (
-              <Input
-                type="text"
-                placeholder="Phone"
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              />
-            )}
-            <Input
-              type="password"
-              placeholder="Password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
-            {error && <p className="form-error">{error}</p>}
-            <Button type="submit" className="w-full justify-center">
-              {mode === "login" ? "Login" : "Create account"}
-            </Button>
-          </form>
-        </div>
-      </section>
+      <Navigate
+        to="/sign-in"
+        replace
+        state={{ redirectTo: "/orders" }}
+      />
     );
   }
 

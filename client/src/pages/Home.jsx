@@ -539,7 +539,7 @@ export default function Home() {
                 variant="secondary"
                 className={secondaryButtonClass}
               >
-                <Link to={isAuthenticated ? "/rewards" : "/orders"}>
+                <Link to={isAuthenticated ? "/rewards" : "/sign-in"}>
                   {isAuthenticated ? "View Rewards" : "Sign in"}
                 </Link>
               </Button>

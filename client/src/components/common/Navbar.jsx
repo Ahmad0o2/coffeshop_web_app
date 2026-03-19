@@ -631,7 +631,7 @@ export default function Navbar() {
                           </>
                         ) : (
                           <NavLink
-                            to="/orders"
+                            to="/sign-in"
                             className={({ isActive }) =>
                               adminDrawerItemClass({ isActive })
                             }

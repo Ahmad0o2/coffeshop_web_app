@@ -101,7 +101,11 @@ export default function Cart() {
       {!isAuthenticated && (
         <div className="mt-4 rounded-xl2 border border-gold/20 bg-obsidian/50 p-4 text-sm text-cocoa/70">
           Please sign in to view your cart and place orders.
-          <Link to="/orders" className="ml-2 text-espresso underline">
+          <Link
+            to="/sign-in"
+            state={{ redirectTo: "/cart" }}
+            className="ml-2 text-espresso underline"
+          >
             Sign in
           </Link>
         </div>
