@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
 import ProductCard from "../components/menu/ProductCard";
@@ -29,6 +29,11 @@ const fetchProducts = async () => {
   return data.products || [];
 };
 
+const areHomeHighlightsEqual = (first, second) =>
+  first.todaysSpecialId === second.todaysSpecialId &&
+  first.featuredProductIds.length === second.featuredProductIds.length &&
+  first.featuredProductIds.every((value, index) => value === second.featuredProductIds[index]);
+
 export default function Menu() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -47,8 +52,19 @@ export default function Menu() {
     showUnavailable: false,
   });
   const [showFilters, setShowFilters] = useState(false);
-  const [highlightSavingKey, setHighlightSavingKey] = useState("");
+  const [highlightDraft, setHighlightDraft] = useState({
+    todaysSpecialId: "",
+    featuredProductIds: [],
+  });
+  const [isHighlightSyncing, setIsHighlightSyncing] = useState(false);
   const [highlightPickerError, setHighlightPickerError] = useState("");
+  const highlightSaveTimeoutRef = useRef(null);
+  const highlightSaveInFlightRef = useRef(false);
+  const queuedHighlightDraftRef = useRef(null);
+  const lastSavedHighlightsRef = useRef({
+    todaysSpecialId: "",
+    featuredProductIds: [],
+  });
   const searchParams = useMemo(
     () => new URLSearchParams(location.search),
     [location.search],
@@ -75,6 +91,12 @@ export default function Menu() {
     isDayTheme
       ? "border-[#3f7674]/18 bg-[#eef7f6] text-espresso"
       : "border-gold/18 bg-[#17110f] text-cream",
+  );
+  const highlightPickerErrorClass = cn(
+    "mt-3 rounded-[1.1rem] border px-4 py-3 text-sm font-medium shadow-[0_12px_24px_rgba(35,18,18,0.12)]",
+    isDayTheme
+      ? "border-rose-300/80 bg-rose-50 text-rose-800"
+      : "border-rose-500/35 bg-rose-950/30 text-rose-200",
   );
   const realtimeBindings = useMemo(
     () => [
@@ -192,8 +214,8 @@ export default function Menu() {
     setShowFilters(false);
   };
 
-  const currentTodaysSpecialId = settings?.todaysSpecialProductId || "";
-  const currentFeaturedIds = settings?.featuredProductIds || [];
+  const currentTodaysSpecialId = highlightDraft.todaysSpecialId;
+  const currentFeaturedIds = highlightDraft.featuredProductIds;
 
   const handleReturnToOrder = () => {
     if (!orderEditSession?.orderId) return;
@@ -209,49 +231,129 @@ export default function Menu() {
     navigate("/admin?tab=brand");
   };
 
-  const saveAdminHomeHighlights = async ({
-    nextTodaysSpecialId = currentTodaysSpecialId,
-    nextFeaturedIds = currentFeaturedIds,
-    savingKey = "",
-  }) => {
-    setHighlightSavingKey(savingKey);
-    setHighlightPickerError("");
-    try {
-      const formData = new FormData();
-      formData.append("todaysSpecialProductId", nextTodaysSpecialId);
-      formData.append("featuredProductIds", JSON.stringify(nextFeaturedIds));
-      const { data } = await api.put("/admin/settings", formData);
-      if (data?.settings) {
-        queryClient.setQueryData(["settings"], data.settings);
-      }
-    } catch {
-      setHighlightPickerError("Couldn’t update the Home highlights right now.");
-    } finally {
-      setHighlightSavingKey("");
-    }
-  };
-
-  const handleSetTodaysSpecial = async (productId) => {
-    await saveAdminHomeHighlights({
-      nextTodaysSpecialId: productId,
-      savingKey: `special-${productId}`,
-    });
-  };
-
-  const handleToggleFeaturedProduct = async (productId) => {
-    const alreadySelected = currentFeaturedIds.includes(productId);
-    if (!alreadySelected && currentFeaturedIds.length >= 6) {
-      setHighlightPickerError("You can only keep up to 6 products on Home.");
+  const processQueuedHighlightSave = useCallback(async () => {
+    if (highlightSaveInFlightRef.current || !queuedHighlightDraftRef.current) {
       return;
     }
 
-    const nextFeaturedIds = alreadySelected
-      ? currentFeaturedIds.filter((id) => id !== productId)
-      : [...currentFeaturedIds, productId];
+    const draftToSave = queuedHighlightDraftRef.current;
+    queuedHighlightDraftRef.current = null;
+    highlightSaveInFlightRef.current = true;
+    setIsHighlightSyncing(true);
+    setHighlightPickerError("");
 
-    await saveAdminHomeHighlights({
-      nextFeaturedIds,
-      savingKey: `featured-${productId}`,
+    try {
+      const formData = new FormData();
+      formData.append("todaysSpecialProductId", draftToSave.todaysSpecialId);
+      formData.append(
+        "featuredProductIds",
+        JSON.stringify(draftToSave.featuredProductIds),
+      );
+      const { data } = await api.put("/admin/settings", formData);
+      const confirmedHighlights = {
+        todaysSpecialId:
+          data?.settings?.todaysSpecialProductId ?? draftToSave.todaysSpecialId,
+        featuredProductIds:
+          data?.settings?.featuredProductIds ?? draftToSave.featuredProductIds,
+      };
+
+      lastSavedHighlightsRef.current = confirmedHighlights;
+
+      if (data?.settings) {
+        queryClient.setQueryData(["settings"], data.settings);
+      }
+
+      setHighlightDraft((currentDraft) =>
+        areHomeHighlightsEqual(currentDraft, confirmedHighlights)
+          ? currentDraft
+          : confirmedHighlights,
+      );
+    } catch {
+      if (!queuedHighlightDraftRef.current) {
+        setHighlightDraft(lastSavedHighlightsRef.current);
+      }
+      setHighlightPickerError("Couldn't update the Home highlights right now.");
+    } finally {
+      highlightSaveInFlightRef.current = false;
+      if (queuedHighlightDraftRef.current) {
+        void processQueuedHighlightSave();
+      } else {
+        setIsHighlightSyncing(false);
+      }
+    }
+  }, [queryClient]);
+
+  useEffect(() => {
+    const nextHighlights = {
+      todaysSpecialId: settings?.todaysSpecialProductId || "",
+      featuredProductIds: settings?.featuredProductIds || [],
+    };
+
+    lastSavedHighlightsRef.current = nextHighlights;
+    setHighlightDraft((currentDraft) =>
+      areHomeHighlightsEqual(currentDraft, nextHighlights)
+        ? currentDraft
+        : nextHighlights,
+    );
+  }, [settings?.featuredProductIds, settings?.todaysSpecialProductId]);
+
+  useEffect(() => {
+    if (!isAdminHomePicker) return undefined;
+    if (areHomeHighlightsEqual(highlightDraft, lastSavedHighlightsRef.current)) {
+      return undefined;
+    }
+
+    if (highlightSaveTimeoutRef.current) {
+      clearTimeout(highlightSaveTimeoutRef.current);
+    }
+
+    highlightSaveTimeoutRef.current = setTimeout(() => {
+      queuedHighlightDraftRef.current = {
+        todaysSpecialId: highlightDraft.todaysSpecialId,
+        featuredProductIds: [...highlightDraft.featuredProductIds],
+      };
+      void processQueuedHighlightSave();
+    }, 220);
+
+    return () => {
+      if (highlightSaveTimeoutRef.current) {
+        clearTimeout(highlightSaveTimeoutRef.current);
+      }
+    };
+  }, [highlightDraft, isAdminHomePicker, processQueuedHighlightSave]);
+
+  useEffect(
+    () => () => {
+      if (highlightSaveTimeoutRef.current) {
+        clearTimeout(highlightSaveTimeoutRef.current);
+      }
+    },
+    [],
+  );
+
+  const handleSetTodaysSpecial = (productId) => {
+    setHighlightPickerError("");
+    setHighlightDraft((prev) => ({
+      ...prev,
+      todaysSpecialId: productId,
+    }));
+  };
+
+  const handleToggleFeaturedProduct = (productId) => {
+    setHighlightPickerError("");
+    setHighlightDraft((prev) => {
+      const alreadySelected = prev.featuredProductIds.includes(productId);
+      if (!alreadySelected && prev.featuredProductIds.length >= 6) {
+        setHighlightPickerError("You can only keep up to 6 products on Home.");
+        return prev;
+      }
+
+      return {
+        ...prev,
+        featuredProductIds: alreadySelected
+          ? prev.featuredProductIds.filter((id) => id !== productId)
+          : [...prev.featuredProductIds, productId],
+      };
     });
   };
 
@@ -286,6 +388,7 @@ export default function Menu() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              {isHighlightSyncing && <Badge>Syncing...</Badge>}
               <Button
                 size="sm"
                 variant="secondary"
@@ -296,7 +399,7 @@ export default function Menu() {
             </div>
           </div>
           {highlightPickerError && (
-            <p className="form-error mt-3">{highlightPickerError}</p>
+            <div className={highlightPickerErrorClass}>{highlightPickerError}</div>
           )}
         </div>
       )}
@@ -504,17 +607,14 @@ export default function Menu() {
                               : "secondary"
                           }
                           className="w-full"
-                          disabled={highlightSavingKey === `special-${product._id}`}
                           onClick={(event) => {
                             event.stopPropagation();
-                            void handleSetTodaysSpecial(product._id);
+                            handleSetTodaysSpecial(product._id);
                           }}
                         >
-                          {highlightSavingKey === `special-${product._id}`
-                            ? "Saving..."
-                            : currentTodaysSpecialId === product._id
-                              ? "Today's Special"
-                              : "Set as Today's Special"}
+                          {currentTodaysSpecialId === product._id
+                            ? "Today's Special"
+                            : "Set as Today's Special"}
                         </Button>
                         <Button
                           type="button"
@@ -524,17 +624,14 @@ export default function Menu() {
                               : "outline"
                           }
                           className="w-full"
-                          disabled={highlightSavingKey === `featured-${product._id}`}
                           onClick={(event) => {
                             event.stopPropagation();
-                            void handleToggleFeaturedProduct(product._id);
+                            handleToggleFeaturedProduct(product._id);
                           }}
                         >
-                          {highlightSavingKey === `featured-${product._id}`
-                            ? "Saving..."
-                            : currentFeaturedIds.includes(product._id)
-                              ? "Remove from Home"
-                              : "Add to Home"}
+                          {currentFeaturedIds.includes(product._id)
+                            ? "Remove from Home"
+                            : "Add to Home"}
                         </Button>
                       </>
                     ) : null
