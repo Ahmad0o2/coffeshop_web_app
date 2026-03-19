@@ -181,7 +181,7 @@ const loadDismissedFeedbackOrderIds = () => {
 };
 
 export default function Profile() {
-  const { user, login, register, logout, isAuthenticated, refreshProfile } =
+  const { user, login, register, isAuthenticated, refreshProfile } =
     useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -815,11 +815,6 @@ export default function Profile() {
         <div>
           <h1 className="text-3xl font-semibold text-espresso">Your Orders</h1>
           <p className="text-sm text-cocoa/70">Welcome back, {user.fullName}</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" onClick={logout}>
-            Logout
-          </Button>
         </div>
       </div>
 
