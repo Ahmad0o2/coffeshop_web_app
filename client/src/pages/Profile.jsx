@@ -267,6 +267,13 @@ export default function Profile() {
     () => groupOrdersByDay(filteredOrders),
     [filteredOrders],
   );
+  const latestOrderId = useMemo(() => {
+    if (!orders.length) return "";
+    return [...orders]
+      .sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )[0]?._id || "";
+  }, [orders]);
 
   const replaceOrderInState = useCallback((nextOrder) => {
     setOrders((prev) =>
@@ -826,6 +833,7 @@ export default function Profile() {
                 {group.entries.map((order) => {
                   const isEditable = isOrderEditableForCustomer(order.status);
                   const isEditing = editingOrderId === order._id;
+                  const canShowFeedback = order.status === "Completed" && order._id === latestOrderId;
                   const editDraft =
                     orderDrafts[order._id] || buildEditableOrderDraft(order);
                   const feedbackDraft =
@@ -1130,7 +1138,7 @@ export default function Profile() {
                         </div>
                       )}
 
-                      {order.status === "Completed" && (
+                      {canShowFeedback && (
                         <div className={feedbackPanelClass}>
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
