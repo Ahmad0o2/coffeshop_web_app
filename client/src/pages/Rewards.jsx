@@ -4,9 +4,11 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import RewardCard from "../components/rewards/RewardCard";
 import api from "../services/api";
 import useAuth from "../hooks/useAuth";
+import useTheme from "../hooks/useTheme";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { PageHeroSkeleton } from "../components/common/PageSkeleton";
+import { cn } from "../lib/utils";
 
 const fetchRewards = async () => {
   const { data } = await api.get("/rewards");
@@ -20,10 +22,22 @@ const fetchHistory = async () => {
 
 export default function Rewards() {
   const { isAuthenticated, user, refreshProfile } = useAuth();
+  const { theme } = useTheme();
   const queryClient = useQueryClient();
   const [redeemingId, setRedeemingId] = useState("");
   const [confirmReward, setConfirmReward] = useState(null);
   const [recentRedeemAt, setRecentRedeemAt] = useState({});
+  const isDayTheme = theme === "day";
+  const popupBackdropClass = cn(
+    "fixed inset-0 z-50 flex items-center justify-center px-4 backdrop-blur-sm",
+    isDayTheme ? "bg-[rgba(34,71,70,0.24)]" : "bg-[#120d0b]/80",
+  );
+  const popupPanelClass = cn(
+    "w-full max-w-md rounded-xl3 border p-6 shadow-2xl transition-colors",
+    isDayTheme
+      ? "border-[#3f7674]/18 bg-[#f8fcfc] text-espresso shadow-[0_24px_50px_rgba(34,71,70,0.16)]"
+      : "border-gold/20 bg-[#17110f] text-cream",
+  );
   const {
     data: rewards = [],
     refetch,
@@ -136,17 +150,19 @@ export default function Rewards() {
 
       {confirmReward && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-[#120d0b] px-4"
+          className={popupBackdropClass}
           onClick={() => setConfirmReward(null)}
         >
           <div
-            className="w-full max-w-md rounded-xl3 border border-gold/20 bg-[#17110f] p-6 text-cream shadow-2xl"
+            className={popupPanelClass}
             onClick={(event) => event.stopPropagation()}
           >
-            <h2 className="text-xl font-semibold text-cream">Redeem again?</h2>
-            <p className="mt-3 text-sm leading-7 text-cocoa/80">
+            <h2 className={cn("text-xl font-semibold", isDayTheme ? "text-espresso" : "text-cream")}>
+              Redeem again?
+            </h2>
+            <p className={cn("mt-3 text-sm leading-7", isDayTheme ? "text-cocoa/76" : "text-cocoa/80")}>
               You already redeemed{" "}
-              <span className="font-semibold text-cream">
+              <span className={cn("font-semibold", isDayTheme ? "text-espresso" : "text-cream")}>
                 {confirmReward.title}
               </span>
               . Do you want to redeem it one more time?
