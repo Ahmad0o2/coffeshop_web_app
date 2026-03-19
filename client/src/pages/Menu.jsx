@@ -182,16 +182,6 @@ export default function Menu() {
     });
   };
 
-  const handleCancelOrderEditFlow = () => {
-    if (!orderEditSession?.orderId) return;
-    navigate("/orders", {
-      state: {
-        restoreOrderEditor: true,
-        orderId: orderEditSession.orderId,
-      },
-    });
-  };
-
   if (categoriesLoading || productsLoading) {
     return <PageHeroSkeleton cards={6} sidebar />;
   }
@@ -212,9 +202,6 @@ export default function Menu() {
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={handleReturnToOrder}>
                 Back To Your Order
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleCancelOrderEditFlow}>
-                Cancel Adding
               </Button>
             </div>
           </div>
