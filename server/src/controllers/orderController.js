@@ -440,6 +440,8 @@ export const updateOrder = asyncHandler(async (req, res) => {
       order.specialInstructions = payload.specialInstructions || ''
     }
 
+    order.lastEditedAt = new Date()
+
     await order.save()
 
     const updatedOrder = await loadOrderWithRelations(order._id)

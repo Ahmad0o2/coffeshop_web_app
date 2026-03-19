@@ -49,6 +49,7 @@ const orderSchema = new mongoose.Schema(
     specialInstructions: { type: String, default: '' },
     items: { type: [orderItemSchema], required: true },
     feedback: { type: orderFeedbackSchema, default: null },
+    lastEditedAt: { type: Date, default: null },
   },
   { timestamps: true }
 )

@@ -2508,6 +2508,14 @@ export default function AdminDashboard() {
                               <p className="mt-1 text-xs text-cocoa/66">
                                 Placed: {formatOrderDateTime(order.createdAt)}
                               </p>
+                              {order.lastEditedAt && (
+                                <div className="mt-2 flex flex-wrap items-center gap-2">
+                                  <Badge variant="highlight">Edited</Badge>
+                                  <p className="text-xs text-cocoa/66">
+                                    Edited: {formatOrderDateTime(order.lastEditedAt)}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                             <div className="grid gap-3 sm:grid-cols-[1fr_auto] lg:min-w-[220px]">
                               <SelectMenu
