@@ -66,6 +66,16 @@ const orderDateFilterOptions = [
   "This Month",
   "This Year",
 ];
+const orderFeedbackFilterOptions = [
+  "All Ratings",
+  "Has Feedback",
+  "No Feedback",
+  "5 Stars",
+  "4 Stars",
+  "3 Stars",
+  "2 Stars",
+  "1 Star",
+];
 const inventoryStatusFilterOptions = [
   "All Items",
   "Tracked",
@@ -691,6 +701,7 @@ export default function AdminDashboard() {
     payment: "All",
     search: "",
     day: "All Dates",
+    feedback: "All Ratings",
   });
   const [updatingOrderIds, setUpdatingOrderIds] = useState({});
   const [eventForm, setEventForm] = useState({
@@ -1004,15 +1015,38 @@ export default function AdminDashboard() {
     const payment = orderFilters.payment;
     const search = orderFilters.search.trim().toLowerCase();
     const day = orderFilters.day;
+    const feedback = orderFilters.feedback;
     return orders.filter((order) => {
       const matchesStatus = status === "All" ? true : order.status === status;
       const matchesPayment =
         payment === "All" ? true : (order.paymentMethod || "Cash") === payment;
       const matchesSearch = search
-        ? String(order._id).toLowerCase().includes(search)
+        ? [
+            String(order._id),
+            order.userId?.fullName || "",
+            order.userId?.phone || "",
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(search)
         : true;
       const matchesDay = matchesOrderDateFilter(order.createdAt, day);
-      return matchesStatus && matchesPayment && matchesSearch && matchesDay;
+      const rating = Number(order.feedback?.rating || 0);
+      const matchesFeedback =
+        feedback === "All Ratings"
+          ? true
+          : feedback === "Has Feedback"
+            ? Boolean(order.feedback?.rating)
+            : feedback === "No Feedback"
+              ? !order.feedback?.rating
+              : rating === Number(feedback.split(" ")[0]);
+      return (
+        matchesStatus &&
+        matchesPayment &&
+        matchesSearch &&
+        matchesDay &&
+        matchesFeedback
+      );
     });
   }, [orders, orderFilters]);
 
@@ -1848,11 +1882,11 @@ export default function AdminDashboard() {
       ? "card relative overflow-hidden rounded-[2.4rem] border border-[#3f7674]/14 bg-[rgba(248,252,252,0.96)] p-4 shadow-[0_6px_16px_rgba(34,71,70,0.025)] transition-all duration-300"
       : "card relative overflow-hidden rounded-[2.4rem] border border-gold/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0)),rgba(14,11,10,0.94)] p-4 shadow-[0_24px_56px_rgba(13,9,8,0.12)] transition-all duration-300";
   const isDayTheme = theme === "day";
-  const orderSummaryCardClass = cn(
-    dashboardCompactItemClass,
+  const orderSummaryPillClass = cn(
+    "rounded-full border px-3 py-2 text-xs font-semibold",
     isDayTheme
-      ? "min-h-[7.5rem] border-[#3f7674]/18 bg-[#fbfdfd] px-4 py-3.5 shadow-[0_8px_18px_rgba(34,71,70,0.04)]"
-      : "min-h-[7.5rem] border-gold/18 bg-[rgba(24,18,16,0.92)] px-4 py-3.5 shadow-[0_18px_34px_rgba(12,8,7,0.20)]",
+      ? "border-[#3f7674]/16 bg-[#eef7f6] text-[#315f5e]"
+      : "border-gold/16 bg-[rgba(28,21,19,0.9)] text-cocoa/82",
   );
   const orderFiltersCardClass = cn(
     dashboardCompactItemClass,
@@ -1866,9 +1900,15 @@ export default function AdminDashboard() {
       ? "border-[#3f7674]/18 bg-[#fbfdfd] shadow-[0_10px_22px_rgba(34,71,70,0.05)]"
       : "border-gold/18 bg-[rgba(21,16,14,0.96)] shadow-[0_22px_44px_rgba(10,7,6,0.24)]",
   );
-  const orderLineItemClass = isDayTheme
-    ? "rounded-[1.1rem] border border-[#3f7674]/16 bg-[#f3f9f8] px-3 py-3"
-    : "rounded-[1.1rem] border border-gold/16 bg-[rgba(30,23,20,0.92)] px-3 py-3";
+  const orderGroupClass = cn(
+    "space-y-4 border-l pl-4",
+    isDayTheme ? "border-[#3f7674]/18" : "border-gold/16",
+  );
+  const orderItemsListClass = cn(
+    "mt-3 divide-y",
+    isDayTheme ? "divide-[#3f7674]/10" : "divide-gold/10",
+  );
+  const orderLineItemClass = "py-3 first:pt-0 last:pb-0";
 
   const dashboardUserLabel =
     user?.fullName || user?.username || user?.email || "Team member";
@@ -2362,110 +2402,94 @@ export default function AdminDashboard() {
                 title="Live Orders"
                 description={`${filteredOrders.length} of ${orders.length} orders shown in the current queue.`}
               />
-              <div className="mt-5 grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(26rem,32rem)]">
-                <div className="grid gap-4 sm:grid-cols-3">
-                  <div className={orderSummaryCardClass}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cocoa/55">
-                      Received
-                    </p>
-                    <p className="mt-3 text-[1.9rem] font-semibold text-espresso">
-                      {receivedOrdersCount}
-                    </p>
-                  </div>
-                  <div className={orderSummaryCardClass}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cocoa/55">
-                      In Progress
-                    </p>
-                    <p className="mt-3 text-[1.9rem] font-semibold text-espresso">
-                      {inProgressOrdersCount}
-                    </p>
-                  </div>
-                  <div className={orderSummaryCardClass}>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cocoa/55">
-                      Ready
-                    </p>
-                    <p className="mt-3 text-[1.9rem] font-semibold text-espresso">
-                      {readyOrdersCount}
-                    </p>
-                  </div>
-                </div>
-
-                <div
-                  className={cn(orderFiltersCardClass, "flex flex-col gap-4")}
-                >
+              <div className={cn(orderFiltersCardClass, "mt-5 flex flex-col gap-4 p-4")}>
+                <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-cocoa/55">
                       Filters
                     </p>
                     <p className="mt-1 text-xs text-cocoa/60">
-                      Narrow the queue by status, payment method, or order
-                      number.
+                      Narrow the queue by status, payment, date, rating, customer, or order ID.
                     </p>
                   </div>
-                  <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    <SelectMenu
-                      value={orderFilters.status}
-                      onChange={(value) =>
-                        setOrderFilters((prev) => ({ ...prev, status: value }))
-                      }
-                      className="w-full"
-                      menuClassName="w-full"
-                      options={["All", ...statusOptions].map((status) => ({
-                        label: status,
-                        value: status,
-                      }))}
-                    />
-                    <SelectMenu
-                      value={orderFilters.payment}
-                      onChange={(value) =>
-                        setOrderFilters((prev) => ({ ...prev, payment: value }))
-                      }
-                      className="w-full"
-                      menuClassName="w-full"
-                      options={["All", "Cash", "Card"].map((method) => ({
-                        label: method,
-                        value: method,
-                      }))}
-                    />
-                    <SelectMenu
-                      value={orderFilters.day}
-                      onChange={(value) =>
-                        setOrderFilters((prev) => ({ ...prev, day: value }))
-                      }
-                      className="w-full"
-                      menuClassName="w-full"
-                      options={orderDateFilterOptions.map((option) => ({
-                        label: option,
-                        value: option,
-                      }))}
-                    />
-                    <Input
-                      type="text"
-                      placeholder="Search order ID"
-                      value={orderFilters.search}
-                      onChange={(e) =>
-                        setOrderFilters((prev) => ({
-                          ...prev,
-                          search: e.target.value,
-                        }))
-                      }
-                      className="w-full"
-                    />
+                  <div className="flex flex-wrap gap-2">
+                    <span className={orderSummaryPillClass}>
+                      Received: {receivedOrdersCount}
+                    </span>
+                    <span className={orderSummaryPillClass}>
+                      In Progress: {inProgressOrdersCount}
+                    </span>
+                    <span className={orderSummaryPillClass}>
+                      Ready: {readyOrdersCount}
+                    </span>
                   </div>
+                </div>
+                <div className="grid w-full gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                  <SelectMenu
+                    value={orderFilters.status}
+                    onChange={(value) =>
+                      setOrderFilters((prev) => ({ ...prev, status: value }))
+                    }
+                    className="w-full"
+                    menuClassName="w-full"
+                    options={["All", ...statusOptions].map((status) => ({
+                      label: status,
+                      value: status,
+                    }))}
+                  />
+                  <SelectMenu
+                    value={orderFilters.payment}
+                    onChange={(value) =>
+                      setOrderFilters((prev) => ({ ...prev, payment: value }))
+                    }
+                    className="w-full"
+                    menuClassName="w-full"
+                    options={["All", "Cash", "Card"].map((method) => ({
+                      label: method,
+                      value: method,
+                    }))}
+                  />
+                  <SelectMenu
+                    value={orderFilters.day}
+                    onChange={(value) =>
+                      setOrderFilters((prev) => ({ ...prev, day: value }))
+                    }
+                    className="w-full"
+                    menuClassName="w-full"
+                    options={orderDateFilterOptions.map((option) => ({
+                      label: option,
+                      value: option,
+                    }))}
+                  />
+                  <SelectMenu
+                    value={orderFilters.feedback}
+                    onChange={(value) =>
+                      setOrderFilters((prev) => ({ ...prev, feedback: value }))
+                    }
+                    className="w-full"
+                    menuClassName="w-full"
+                    options={orderFeedbackFilterOptions.map((option) => ({
+                      label: option,
+                      value: option,
+                    }))}
+                  />
+                  <Input
+                    type="text"
+                    placeholder="Search order, customer, or phone"
+                    value={orderFilters.search}
+                    onChange={(e) =>
+                      setOrderFilters((prev) => ({
+                        ...prev,
+                        search: e.target.value,
+                      }))
+                    }
+                    className="w-full"
+                  />
                 </div>
               </div>
               <div className="mt-4 space-y-4 text-sm">
                 {groupedOrders.map((group) => (
-                  <div
-                    key={group.dateKey}
-                    className={cn(
-                      dashboardCompactItemClass,
-                      "space-y-4 p-4",
-                      isDayTheme
-                        ? "border-[#3f7674]/14 bg-[#f8fcfc]"
-                        : "border-gold/14 bg-[rgba(23,17,15,0.94)]",
-                    )}
-                  >
+                  <div key={group.dateKey} className={orderGroupClass}>
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <h3 className="text-lg font-semibold text-espresso">
@@ -2536,7 +2560,7 @@ export default function AdminDashboard() {
                               </Badge>
                             </div>
                           </div>
-                          <div className="mt-3 space-y-2">
+                          <div className={orderItemsListClass}>
                             {(order.items || []).map((item) => (
                               <div key={item._id} className={orderLineItemClass}>
                                 <div className="flex items-start justify-between gap-3">
