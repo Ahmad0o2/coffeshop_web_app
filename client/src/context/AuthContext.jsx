@@ -50,6 +50,9 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(() => {
     saveAuth(null, null);
+    if (typeof window !== "undefined") {
+      window.location.assign("/");
+    }
   }, []);
 
   const refreshProfile = useCallback(async () => {
