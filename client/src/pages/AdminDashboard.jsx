@@ -4003,7 +4003,7 @@ export default function AdminDashboard() {
                     </div>
 
                     <div className="mt-4 space-y-4 text-sm">
-                      <div className="grid gap-3 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+                      <div className="space-y-3">
                         <div
                           className={cn(
                             dashboardCompactItemClass,
@@ -4099,7 +4099,7 @@ export default function AdminDashboard() {
                           </div>
 
                           {selectedFeaturedProducts.length ? (
-                            <div className="grid gap-2 sm:grid-cols-2">
+                            <div className="space-y-2">
                               {selectedFeaturedProducts.map((product) => (
                                 <div
                                   key={product._id}
@@ -4122,6 +4122,10 @@ export default function AdminDashboard() {
                                   <div className="min-w-0 flex-1">
                                     <p className="truncate font-medium text-espresso">
                                       {product.name}
+                                    </p>
+                                    <p className="mt-1 text-[11px] text-cocoa/60">
+                                      {categoryMap.get(product.categoryId) ||
+                                        "Category"}
                                     </p>
                                     <p className="mt-1 text-[11px] text-cocoa/60">
                                       {formatAdminProductPrice(product)}
