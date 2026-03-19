@@ -10,6 +10,10 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { PageHeroSkeleton } from "../components/common/PageSkeleton";
+import {
+  loadOrderEditSession,
+} from "../utils/orderEditSession";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const fetchCategories = async () => {
   const { data } = await api.get("/categories");
@@ -22,6 +26,8 @@ const fetchProducts = async () => {
 };
 
 export default function Menu() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { addItem } = useCart();
   const [filters, setFilters] = useState({
     category: "",
@@ -33,6 +39,13 @@ export default function Menu() {
     showUnavailable: false,
   });
   const [showFilters, setShowFilters] = useState(false);
+  const orderEditSession = useMemo(
+    () => {
+      void location.key;
+      return loadOrderEditSession();
+    },
+    [location.key],
+  );
   const realtimeBindings = useMemo(
     () => [
       { event: "catalog:changed", queryKeys: [["categories"], ["products"]] },
@@ -149,12 +162,54 @@ export default function Menu() {
     setShowFilters(false);
   };
 
+  const handleReturnToOrder = () => {
+    if (!orderEditSession?.orderId) return;
+    navigate("/orders", {
+      state: {
+        restoreOrderEditor: true,
+        orderId: orderEditSession.orderId,
+      },
+    });
+  };
+
+  const handleCancelOrderEditFlow = () => {
+    if (!orderEditSession?.orderId) return;
+    navigate("/orders", {
+      state: {
+        restoreOrderEditor: true,
+        orderId: orderEditSession.orderId,
+      },
+    });
+  };
+
   if (categoriesLoading || productsLoading) {
     return <PageHeroSkeleton cards={6} sidebar />;
   }
 
   return (
     <section className="section-shell">
+      {orderEditSession?.orderId && (
+        <div className="sticky top-20 z-20 mb-5">
+          <div className="card flex flex-wrap items-center justify-between gap-3 border border-gold/18 px-5 py-4">
+            <div>
+              <p className="text-sm font-semibold text-espresso">
+                Adding to order #{orderEditSession.orderId}
+              </p>
+              <p className="mt-1 text-xs text-cocoa/68">
+                Pick a menu item, open it, then attach it to the same order.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" onClick={handleReturnToOrder}>
+                Return To Editor
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleCancelOrderEditFlow}>
+                Stop Adding
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="card relative overflow-hidden p-8">
         <div className="absolute right-[-120px] top-[-80px] h-64 w-64 rounded-full bg-gold/10 blur-3xl" />
         <div className="flex flex-wrap items-center justify-between gap-4">
@@ -328,6 +383,7 @@ export default function Menu() {
                   key={product._id}
                   product={product}
                   onAdd={addItem}
+                  orderEditSession={orderEditSession}
                 />
               ))
             )}

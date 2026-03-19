@@ -9,7 +9,7 @@ import {
   isProductLowStock,
 } from "../../utils/inventory";
 
-export default function ProductCard({ product, onAdd }) {
+export default function ProductCard({ product, onAdd, orderEditSession = null }) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -23,7 +23,12 @@ export default function ProductCard({ product, onAdd }) {
     sizePrices[0]?.size ||
     "";
   const productPath = `/menu/${product._id}`;
-  const navigationState = { from: location.pathname };
+  const navigationState = {
+    from: location.pathname,
+    orderEditSession: orderEditSession?.orderId
+      ? { orderId: orderEditSession.orderId }
+      : null,
+  };
 
   const handleCardClick = (event) => {
     if (event.target.closest("button")) return;
@@ -91,6 +96,10 @@ export default function ProductCard({ product, onAdd }) {
             variant="secondary"
             onClick={(event) => {
               event.stopPropagation();
+              if (orderEditSession?.orderId) {
+                navigate(productPath, { state: navigationState });
+                return;
+              }
               onAdd(product, {
                 selectedSize: defaultSize,
                 selectedAddOns: [],
@@ -106,7 +115,9 @@ export default function ProductCard({ product, onAdd }) {
             {!isAvailable
               ? getInventoryStatusLabel(product)
               : isAuthenticated
-                ? "Add to cart"
+                ? orderEditSession?.orderId
+                  ? "Customize for order"
+                  : "Add to cart"
                 : "Sign in to order"}
           </Button>
         </div>

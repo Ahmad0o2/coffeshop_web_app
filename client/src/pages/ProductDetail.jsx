@@ -10,6 +10,11 @@ import { DetailSkeleton } from '../components/common/PageSkeleton'
 import { getUnitPrice, normalizeSizePrices } from '../utils/pricing'
 import useRealtimeInvalidation from '../hooks/useRealtimeInvalidation'
 import {
+  buildOrderDraftItem,
+  loadOrderEditSession,
+  saveOrderEditSession,
+} from '../utils/orderEditSession'
+import {
   canOrderProduct,
   getInventoryQuantity,
   isProductLowStock,
@@ -28,6 +33,13 @@ export default function ProductDetail() {
   const { isAuthenticated } = useAuth()
   const [selectedSize, setSelectedSize] = useState('')
   const [selectedAddOns, setSelectedAddOns] = useState([])
+  const orderEditSession = useMemo(
+    () => {
+      void location.key
+      return loadOrderEditSession()
+    },
+    [location.key]
+  )
   const realtimeBindings = useMemo(
     () => [
       { event: 'catalog:changed', queryKeys: [['product', id]] },
@@ -59,9 +71,37 @@ export default function ProductDetail() {
     ''
   const unitPrice = getUnitPrice(product, resolvedSize)
   const previousPath = location.state?.from
+  const sessionOrderId =
+    location.state?.orderEditSession?.orderId || orderEditSession?.orderId || ''
+  const activeOrderEditSession = sessionOrderId
+    ? {
+        ...(orderEditSession || {}),
+        orderId: sessionOrderId,
+      }
+    : null
   const inventoryQuantity = getInventoryQuantity(product)
   const canOrder = canOrderProduct(product)
   const isLowStock = isProductLowStock(product)
+
+  const handleReturnToOrder = () => {
+    if (!activeOrderEditSession?.orderId) return
+    navigate('/orders', {
+      state: {
+        restoreOrderEditor: true,
+        orderId: activeOrderEditSession.orderId,
+      },
+    })
+  }
+
+  const handleCancelOrderEditFlow = () => {
+    if (!activeOrderEditSession?.orderId) return
+    navigate('/orders', {
+      state: {
+        restoreOrderEditor: true,
+        orderId: activeOrderEditSession.orderId,
+      },
+    })
+  }
 
   const handleBack = () => {
     if (previousPath) {
@@ -83,8 +123,61 @@ export default function ProductDetail() {
     )
   }
 
+  const handlePrimaryAction = () => {
+    if (activeOrderEditSession?.orderId) {
+      const nextDraft = {
+        ...activeOrderEditSession.draft,
+        items: [
+          ...(activeOrderEditSession.draft?.items || []),
+          buildOrderDraftItem(product, {
+            selectedSize: resolvedSize,
+            selectedAddOns,
+          }),
+        ],
+      }
+
+      saveOrderEditSession({
+        ...activeOrderEditSession,
+        draft: nextDraft,
+      })
+      navigate('/orders', {
+        state: {
+          restoreOrderEditor: true,
+          orderId: activeOrderEditSession.orderId,
+          addedToOrderName: product.name,
+        },
+      })
+      return
+    }
+
+    addItem(product, { selectedSize: resolvedSize, selectedAddOns })
+  }
+
   return (
     <section className="section-shell max-w-4xl">
+      {activeOrderEditSession?.orderId && (
+        <div className="sticky top-20 z-20 mb-5">
+          <div className="card flex flex-wrap items-center justify-between gap-3 border border-gold/18 px-5 py-4">
+            <div>
+              <p className="text-sm font-semibold text-espresso">
+                Adding to order #{activeOrderEditSession.orderId}
+              </p>
+              <p className="mt-1 text-xs text-cocoa/68">
+                Customize this item, then attach it to the order and jump back to
+                the editor.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" variant="secondary" onClick={handleReturnToOrder}>
+                Return To Editor
+              </Button>
+              <Button size="sm" variant="outline" onClick={handleCancelOrderEditFlow}>
+                Stop Adding
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="card p-8">
         {product.imageUrl ? (
           <img
@@ -152,9 +245,7 @@ export default function ProductDetail() {
 
         <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
           <Button
-            onClick={() =>
-              addItem(product, { selectedSize: resolvedSize, selectedAddOns })
-            }
+            onClick={handlePrimaryAction}
             disabled={!isAuthenticated || !canOrder}
             className={
               !isAuthenticated || !canOrder ? 'cursor-not-allowed opacity-50' : ''
@@ -165,7 +256,9 @@ export default function ProductDetail() {
                 ? 'Unavailable'
                 : 'Out of stock'
               : isAuthenticated
-              ? 'Add to cart'
+              ? activeOrderEditSession?.orderId
+                ? 'Add to order'
+                : 'Add to cart'
               : 'Sign in to order'}
           </Button>
           <Button variant="outline" size="sm" onClick={handleBack}>

@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
@@ -15,7 +15,12 @@ import { ListSkeleton } from "../components/common/PageSkeleton";
 import useTheme from "../hooks/useTheme";
 import { cn } from "../lib/utils";
 import { getUnitPrice, normalizeSizePrices } from "../utils/pricing";
-import { canOrderProduct } from "../utils/inventory";
+import {
+  buildEditableOrderDraft,
+  clearOrderEditSession,
+  loadOrderEditSession,
+  saveOrderEditSession,
+} from "../utils/orderEditSession";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 const orderDateFilterOptions = ["All Dates", "Today", "Yesterday", "Last 7 Days", "This Month", "This Year"];
@@ -148,56 +153,6 @@ const groupOrdersByDay = (orders) => {
 const isOrderEditableForCustomer = (status) =>
   !["Ready", "Completed", "Cancelled"].includes(status);
 
-const createDraftLineId = () =>
-  globalThis.crypto?.randomUUID?.() ||
-  `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-const buildDraftItemFromProduct = (product, overrides = {}) => {
-  const sizePrices = normalizeSizePrices(product);
-  const selectedSize =
-    overrides.selectedSize ??
-    sizePrices.find((entry) => entry.size === "Regular")?.size ??
-    sizePrices[0]?.size ??
-    "";
-
-  return {
-    id: overrides.id || createDraftLineId(),
-    productId: overrides.productId || product?._id || "",
-    product,
-    name: overrides.name || product?.name || "Item",
-    imageUrl: overrides.imageUrl || product?.imageUrl || "",
-    quantity: Number(overrides.quantity) || 1,
-    selectedSize,
-    selectedAddOns: overrides.selectedAddOns || [],
-    unitPrice:
-      Number(overrides.unitPrice) ||
-      getUnitPrice(product, selectedSize),
-  };
-};
-
-const buildEditableOrderDraft = (order) => ({
-  items: (order.items || [])
-    .filter((item) => !item.isRewardRedemption)
-    .map((item) =>
-      buildDraftItemFromProduct(
-        item.productId && typeof item.productId === "object" ? item.productId : null,
-        {
-          id: item._id,
-          productId: item.productId?._id || item.productId,
-          name: item.productId?.name || "Item",
-          imageUrl: item.productId?.imageUrl || "",
-          quantity: Number(item.quantity) || 1,
-          selectedSize: item.selectedSize || "",
-          selectedAddOns: item.selectedAddOns || [],
-          unitPrice: Number(item.unitPrice || 0),
-        },
-      ),
-    ),
-  rewardItems: (order.items || []).filter((item) => item.isRewardRedemption),
-  specialInstructions: order.specialInstructions || "",
-  pendingProductId: "",
-});
-
 const buildFeedbackDraft = (order) => ({
   rating: Number(order.feedback?.rating || 0),
   comment: order.feedback?.comment || "",
@@ -217,18 +172,18 @@ export default function Profile() {
     password: "",
   });
   const [orders, setOrders] = useState([]);
-  const [products, setProducts] = useState([]);
   const [error, setError] = useState("");
   const [loadingOrders, setLoadingOrders] = useState(false);
-  const [loadingProducts, setLoadingProducts] = useState(false);
   const [orderDayFilter, setOrderDayFilter] = useState("All Dates");
   const [editingOrderId, setEditingOrderId] = useState("");
   const [orderDrafts, setOrderDrafts] = useState({});
   const [savingOrderId, setSavingOrderId] = useState("");
   const [cancellingOrderId, setCancellingOrderId] = useState("");
   const [cancelTargetOrderId, setCancelTargetOrderId] = useState("");
+  const [orderEditNotice, setOrderEditNotice] = useState(null);
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
   const [submittingFeedbackOrderId, setSubmittingFeedbackOrderId] = useState("");
+  const handledReturnFlowRef = useRef("");
   const isDayTheme = theme === "day";
   const justPlacedOrderId = location.state?.justPlacedOrderId || "";
   const orderFiltersCardClass = cn(
@@ -262,10 +217,16 @@ export default function Profile() {
       : "border-gold/14 bg-[rgba(27,21,18,0.88)] text-cocoa/76",
   );
   const orderEditorClass = cn(
-    "mt-4 rounded-[1.1rem] border p-4 transition-colors",
+    "mt-4 border-t pt-4 transition-colors",
     isDayTheme
-      ? "border-[#3f7674]/16 bg-[#f3f9f8]"
-      : "border-gold/14 bg-[rgba(27,21,18,0.9)]",
+      ? "border-[#3f7674]/16"
+      : "border-gold/14",
+  );
+  const orderEditorItemClass = cn(
+    "rounded-[1rem] px-3 py-3 transition-colors",
+    isDayTheme
+      ? "bg-[#f6fbfb]"
+      : "bg-[rgba(21,16,14,0.74)]",
   );
   const feedbackPanelClass = cn(
     "mt-4 rounded-[1.1rem] border p-4 transition-colors",
@@ -285,10 +246,6 @@ export default function Profile() {
     () => groupOrdersByDay(filteredOrders),
     [filteredOrders],
   );
-  const availableProducts = useMemo(
-    () => products.filter((product) => canOrderProduct(product)),
-    [products],
-  );
 
   const replaceOrderInState = useCallback((nextOrder) => {
     setOrders((prev) =>
@@ -298,6 +255,7 @@ export default function Profile() {
 
   const startEditingOrder = (order) => {
     setError("");
+    setOrderEditNotice(null);
     setEditingOrderId(order._id);
     setOrderDrafts((prev) => ({
       ...prev,
@@ -307,11 +265,18 @@ export default function Profile() {
 
   const stopEditingOrder = useCallback((orderId) => {
     setEditingOrderId((current) => (current === orderId ? "" : current));
+    setOrderEditNotice((current) =>
+      current?.orderId === orderId ? null : current,
+    );
     setOrderDrafts((prev) => {
       const next = { ...prev };
       delete next[orderId];
       return next;
     });
+    const existingSession = loadOrderEditSession();
+    if (existingSession?.orderId === orderId) {
+      clearOrderEditSession();
+    }
   }, []);
 
   const patchOrderDraft = useCallback((orderId, updater) => {
@@ -374,36 +339,6 @@ export default function Profile() {
     }));
   };
 
-  const setPendingDraftProduct = (orderId, value) => {
-    patchOrderDraft(orderId, (draft) => ({
-      ...draft,
-      pendingProductId: value,
-    }));
-  };
-
-  const addPendingProductToDraft = (orderId) => {
-    const draft = orderDrafts[orderId];
-    if (!draft?.pendingProductId) {
-      setError("Pick a menu item first, then add it to the order.");
-      return;
-    }
-
-    const product = availableProducts.find(
-      (entry) => String(entry._id) === String(draft.pendingProductId),
-    );
-
-    if (!product) {
-      setError("That product is not available to add right now.");
-      return;
-    }
-
-    patchOrderDraft(orderId, (currentDraft) => ({
-      ...currentDraft,
-      items: [...currentDraft.items, buildDraftItemFromProduct(product)],
-      pendingProductId: "",
-    }));
-  };
-
   const handleSaveEditedOrder = async (orderId) => {
     const draft = orderDrafts[orderId];
     if (!draft) return;
@@ -431,6 +366,7 @@ export default function Profile() {
         specialInstructions: draft.specialInstructions,
       });
       replaceOrderInState(data.order);
+      setOrderEditNotice(null);
       stopEditingOrder(orderId);
     } catch (err) {
       setError(getApiErrorMessage(err, "We couldn't update that order right now."));
@@ -572,18 +508,25 @@ export default function Profile() {
       });
   }, []);
 
-  const loadProducts = useCallback(() => {
-    setLoadingProducts(true);
-    api
-      .get("/products")
-      .then((response) => {
-        setProducts(response.data.products || []);
-      })
-      .catch(() => {})
-      .finally(() => {
-        setLoadingProducts(false);
-      });
-  }, []);
+  const beginAddAnotherItem = (orderId) => {
+    const draft = orderDrafts[orderId];
+    if (!draft) return;
+    setOrderEditNotice(null);
+
+    saveOrderEditSession({
+      orderId,
+      draft,
+      returnPath: "/orders",
+      updatedAt: Date.now(),
+    });
+
+    navigate("/menu", {
+      state: {
+        orderEditSession: true,
+        orderId,
+      },
+    });
+  };
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -592,14 +535,100 @@ export default function Profile() {
     Promise.resolve().then(() => {
       if (cancelled) return;
       loadOrders();
-      loadProducts();
       refreshProfile?.();
     });
 
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, loadOrders, loadProducts, refreshProfile]);
+  }, [isAuthenticated, loadOrders, refreshProfile]);
+
+  useEffect(() => {
+    if (!editingOrderId) return;
+    const draft = orderDrafts[editingOrderId];
+    if (!draft) return;
+
+    saveOrderEditSession({
+      orderId: editingOrderId,
+      draft,
+      returnPath: "/orders",
+      updatedAt: Date.now(),
+    });
+  }, [editingOrderId, orderDrafts]);
+
+  useEffect(() => {
+    if (!isAuthenticated || orders.length === 0) return;
+
+    const session = loadOrderEditSession();
+    if (!session?.orderId || !session?.draft) return;
+
+    const currentOrder = orders.find(
+      (order) => String(order._id) === String(session.orderId),
+    );
+
+    if (!currentOrder || !isOrderEditableForCustomer(currentOrder.status)) {
+      clearOrderEditSession();
+      return;
+    }
+
+    setEditingOrderId(session.orderId);
+    setOrderDrafts((prev) => ({
+      ...prev,
+      [session.orderId]: session.draft,
+    }));
+  }, [isAuthenticated, orders]);
+
+  useEffect(() => {
+    const restoreOrderId =
+      location.state?.restoreOrderEditor && location.state?.orderId
+        ? String(location.state.orderId)
+        : "";
+
+    if (!restoreOrderId || orders.length === 0) return;
+
+    const requestKey = `${location.key}:${restoreOrderId}:${
+      location.state?.addedToOrderName || ""
+    }`;
+
+    if (handledReturnFlowRef.current === requestKey) return;
+    handledReturnFlowRef.current = requestKey;
+
+    const currentOrder = orders.find(
+      (order) => String(order._id) === restoreOrderId,
+    );
+
+    if (!currentOrder || !isOrderEditableForCustomer(currentOrder.status)) {
+      clearOrderEditSession();
+      return;
+    }
+
+    const session = loadOrderEditSession();
+    const restoredDraft =
+      session?.orderId === restoreOrderId && session?.draft
+        ? session.draft
+        : buildEditableOrderDraft(currentOrder);
+
+    setEditingOrderId(restoreOrderId);
+    setOrderDrafts((prev) => ({
+      ...prev,
+      [restoreOrderId]: restoredDraft,
+    }));
+
+    setOrderEditNotice(
+      location.state?.addedToOrderName
+        ? {
+            orderId: restoreOrderId,
+            message: `${location.state.addedToOrderName} is ready inside this order. Review it, then save when you are done.`,
+          }
+        : null,
+    );
+
+    requestAnimationFrame(() => {
+      document
+        .querySelector(`[data-order-id="${restoreOrderId}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, [location.key, location.state, orders]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -901,16 +930,20 @@ export default function Profile() {
                           </div>
 
                           <div className="mt-4 space-y-3">
-                            {editDraft.items.map((item) => (
+                            {orderEditNotice?.orderId === order._id && (
                               <div
-                                key={item.id}
                                 className={cn(
-                                  "rounded-[1rem] border px-3 py-3",
+                                  "rounded-[1rem] px-3 py-2 text-xs leading-6",
                                   isDayTheme
-                                    ? "border-[#3f7674]/14 bg-[#fbfdfd]"
-                                    : "border-gold/14 bg-[rgba(21,16,14,0.84)]",
+                                    ? "bg-[#eaf5f4] text-cocoa/82"
+                                    : "bg-[rgba(36,28,24,0.82)] text-cocoa/76",
                                 )}
                               >
+                                {orderEditNotice.message}
+                              </div>
+                            )}
+                            {editDraft.items.map((item) => (
+                              <div key={item.id} className={orderEditorItemClass}>
                                 <div className="flex flex-wrap items-center justify-between gap-3">
                                   <div className="flex items-center gap-3">
                                     {item.imageUrl ? (
@@ -1011,63 +1044,16 @@ export default function Profile() {
                             {editDraft.rewardItems.length > 0 && (
                               <div
                                 className={cn(
-                                  "rounded-[1rem] border px-3 py-2.5 text-xs",
+                                  "rounded-[1rem] px-3 py-2.5 text-xs leading-6",
                                   isDayTheme
-                                    ? "border-[#3f7674]/14 bg-[#eaf5f4] text-cocoa/78"
-                                    : "border-gold/14 bg-[rgba(27,21,18,0.88)] text-cocoa/74",
+                                    ? "bg-[#eef7f6] text-cocoa/78"
+                                    : "bg-[rgba(27,21,18,0.82)] text-cocoa/74",
                                 )}
                               >
                                 Redeemed reward items stay attached to this order and
                                 stay free during editing.
                               </div>
                             )}
-
-                            <div
-                              className={cn(
-                                "rounded-[1rem] border px-3 py-3",
-                                isDayTheme
-                                  ? "border-[#3f7674]/14 bg-[#fbfdfd]"
-                                  : "border-gold/14 bg-[rgba(21,16,14,0.84)]",
-                              )}
-                            >
-                              <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div>
-                                  <p className="text-sm font-semibold text-espresso">
-                                    Add Another Item
-                                  </p>
-                                  <p className="mt-1 text-xs text-cocoa/65">
-                                    We can add extra products to this order before it
-                                    becomes ready.
-                                  </p>
-                                </div>
-                                {loadingProducts && (
-                                  <Badge variant="highlight">Loading menu...</Badge>
-                                )}
-                              </div>
-                              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
-                                <SelectMenu
-                                  value={editDraft.pendingProductId}
-                                  onChange={(value) =>
-                                    setPendingDraftProduct(order._id, value)
-                                  }
-                                  className="w-full"
-                                  menuClassName="w-full"
-                                  placeholder="Choose a menu item"
-                                  options={availableProducts.map((product) => ({
-                                    label: product.name,
-                                    value: product._id,
-                                  }))}
-                                />
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  onClick={() => addPendingProductToDraft(order._id)}
-                                  disabled={loadingProducts || availableProducts.length === 0}
-                                >
-                                  Add To Order
-                                </Button>
-                              </div>
-                            </div>
 
                             <div>
                               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
@@ -1086,6 +1072,13 @@ export default function Profile() {
                             </div>
 
                             <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => beginAddAnotherItem(order._id)}
+                              >
+                                Add Another Item
+                              </Button>
                               <Button
                                 size="sm"
                                 disabled={savingOrderId === order._id}
