@@ -2542,7 +2542,7 @@ export default function AdminDashboard() {
                                 </div>
                               )}
                             </div>
-                            <div className="grid gap-3 sm:grid-cols-[1fr_auto] lg:min-w-[220px]">
+                            <div className="grid items-start gap-3 sm:grid-cols-[1fr_auto] lg:min-w-[220px]">
                               <SelectMenu
                                 value={order.status}
                                 onChange={(value) =>
@@ -2551,13 +2551,13 @@ export default function AdminDashboard() {
                                 disabled={Boolean(updatingOrderIds[order._id])}
                                 className="w-full"
                                 menuClassName="w-full"
-                                openSpaceClassName="h-56"
+                                portal
                                 options={statusOptions.map((status) => ({
                                   label: status,
                                   value: status,
                                 }))}
                               />
-                              <Badge className="justify-center">
+                              <Badge className="justify-center self-start">
                                 {order.totalAmount?.toFixed(2)} JD
                               </Badge>
                             </div>
