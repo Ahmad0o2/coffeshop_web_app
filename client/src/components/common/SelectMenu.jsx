@@ -14,6 +14,7 @@ export default function SelectMenu({
   disabled = false,
   renderValue,
   renderOption,
+  menuPlacement = "bottom",
 }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
@@ -31,7 +32,10 @@ export default function SelectMenu({
   }, []);
 
   return (
-    <div ref={wrapperRef} className={cn("relative", className)}>
+    <div
+      ref={wrapperRef}
+      className={cn("relative", open && "z-[90]", className)}
+    >
       {label && <p className="text-xs font-semibold text-cocoa/70">{label}</p>}
       <button
         type="button"
@@ -61,7 +65,8 @@ export default function SelectMenu({
       {open && (
         <div
           className={cn(
-            "absolute z-[80] mt-2 w-full rounded-xl2 border border-gold/20 bg-obsidian p-2 text-sm shadow-2xl",
+            "absolute z-[80] w-full rounded-xl2 border border-gold/20 bg-obsidian p-2 text-sm shadow-2xl",
+            menuPlacement === "top" ? "bottom-full mb-2" : "top-full mt-2",
             menuClassName,
           )}
         >

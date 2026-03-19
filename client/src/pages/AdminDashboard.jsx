@@ -1873,6 +1873,7 @@ export default function AdminDashboard() {
     "card relative overflow-hidden border border-gold/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0)),rgba(16,12,11,0.95)] p-6 shadow-[0_24px_64px_rgba(18,11,9,0.12)]";
   const dashboardPanelClass =
     "card relative overflow-hidden border border-gold/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0)),rgba(17,13,12,0.94)] p-6 shadow-[0_24px_60px_rgba(15,9,8,0.12)]";
+  const ordersPanelClass = cn(dashboardPanelClass, "overflow-visible");
   const dashboardItemClass =
     "rounded-[1.35rem] border border-gold/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0)),rgba(19,14,12,0.56)] p-4 transition-colors hover:border-gold/20";
   const dashboardCompactItemClass =
@@ -2361,7 +2362,7 @@ export default function AdminDashboard() {
               !activeDashboardStat && "xl:grid-cols-1",
             )}
           >
-            <div className={dashboardPanelClass}>
+            <div className={ordersPanelClass}>
               <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-cocoa/55">
@@ -2550,6 +2551,7 @@ export default function AdminDashboard() {
                                 disabled={Boolean(updatingOrderIds[order._id])}
                                 className="w-full"
                                 menuClassName="w-full"
+                                menuPlacement="top"
                                 options={statusOptions.map((status) => ({
                                   label: status,
                                   value: status,
