@@ -1866,7 +1866,7 @@ export default function AdminDashboard() {
   const dashboardHeroClass =
     "card relative overflow-hidden border border-gold/18 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0)),rgba(16,12,11,0.95)] p-6 shadow-[0_24px_64px_rgba(18,11,9,0.12)]";
   const dashboardPanelClass =
-    "card relative overflow-hidden border border-gold/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0)),rgba(17,13,12,0.94)] p-6 shadow-[0_24px_60px_rgba(15,9,8,0.12)]";
+    "card relative h-fit overflow-hidden border border-gold/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0)),rgba(17,13,12,0.94)] p-6 shadow-[0_24px_60px_rgba(15,9,8,0.12)]";
   const ordersPanelClass = cn(dashboardPanelClass, "overflow-visible pb-10");
   const dashboardItemClass =
     "rounded-[1.35rem] border border-gold/12 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0)),rgba(19,14,12,0.56)] p-4 transition-colors hover:border-gold/20";
