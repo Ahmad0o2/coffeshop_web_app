@@ -200,7 +200,7 @@ export default function Auth() {
       navigate(
         ["Admin", "Staff"].includes(data?.user?.role)
           ? "/admin"
-          : redirectTo || "/",
+          : "/",
         { replace: true },
       );
     } catch (err) {
@@ -375,17 +375,6 @@ export default function Auth() {
                 setRegisterForm((prev) => ({
                   ...prev,
                   fullName: event.target.value,
-                }))
-              }
-            />
-            <Input
-              type="email"
-              placeholder="Email"
-              value={registerForm.email}
-              onChange={(event) =>
-                setRegisterForm((prev) => ({
-                  ...prev,
-                  email: event.target.value,
                 }))
               }
             />
