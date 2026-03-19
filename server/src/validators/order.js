@@ -27,3 +27,14 @@ export const createOrderSchema = z
       path: ['items'],
     }
   )
+
+export const updateOrderSchema = z.object({
+  items: z.array(orderItemSchema).default([]),
+  paymentMethod: z.string().optional(),
+  specialInstructions: z.string().optional(),
+})
+
+export const orderFeedbackSchema = z.object({
+  rating: z.number().int().min(1).max(5),
+  comment: z.string().max(1200).optional(),
+})

@@ -131,7 +131,11 @@ export default function Checkout() {
       })
       await queryClient.invalidateQueries({ queryKey: ['reward-history'] })
       clearCart()
-      navigate(`/orders/${data.order._id}`)
+      navigate('/orders', {
+        state: {
+          justPlacedOrderId: data.order._id,
+        },
+      })
     } catch (err) {
       setError(err.response?.data?.message || 'Checkout failed.')
     } finally {

@@ -890,6 +890,7 @@ export default function AdminDashboard() {
         patchOrderCache(payload.orderId, (order) => ({
           ...order,
           status: payload.status || order.status,
+          feedback: payload.feedback || order.feedback,
         }));
       }
       if (canManageOrders) {
@@ -911,6 +912,8 @@ export default function AdminDashboard() {
     socket.on("rewards:changed", handleRewardsChange);
     socket.on("order:new", handleOrderChange);
     socket.on("order:status", handleOrderChange);
+    socket.on("order:updated", handleOrderChange);
+    socket.on("order:feedback", handleOrderChange);
     socket.on("staff:changed", handleStaffChange);
 
     return () => {
@@ -919,6 +922,8 @@ export default function AdminDashboard() {
       socket.off("rewards:changed", handleRewardsChange);
       socket.off("order:new", handleOrderChange);
       socket.off("order:status", handleOrderChange);
+      socket.off("order:updated", handleOrderChange);
+      socket.off("order:feedback", handleOrderChange);
       socket.off("staff:changed", handleStaffChange);
       socket.disconnect();
     };
@@ -2487,6 +2492,16 @@ export default function AdminDashboard() {
                               <p className="text-xs font-medium text-cocoa/68">
                                 Order #{order._id}
                               </p>
+                              {order.userId?.fullName && (
+                                <p className="mt-1 text-sm font-semibold text-espresso">
+                                  {order.userId.fullName}
+                                </p>
+                              )}
+                              {order.userId?.phone && (
+                                <p className="mt-1 text-xs text-cocoa/68">
+                                  Phone: {order.userId.phone}
+                                </p>
+                              )}
                               <p className="mt-1 text-sm text-cocoa/76">
                                 Payment: {order.paymentMethod || "Cash"}
                               </p>
@@ -2571,6 +2586,73 @@ export default function AdminDashboard() {
                               Notes: {order.specialInstructions}
                             </div>
                           )}
+                          {order.feedback?.rating ? (
+                            <div
+                              className={cn(
+                                "mt-3 rounded-[1rem] border px-3 py-3 text-xs",
+                                isDayTheme
+                                  ? "border-[#3f7674]/14 bg-[#eef7f6] text-cocoa/78"
+                                  : "border-gold/14 bg-[rgba(27,21,18,0.88)] text-cocoa/74",
+                              )}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-espresso">
+                                    Customer Feedback
+                                  </p>
+                                  <p className="mt-1 text-xs text-cocoa/62">
+                                    Rated {formatOrderDateTime(order.feedback.submittedAt)}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-1 text-gold">
+                                  {Array.from({ length: 5 }, (_, index) => (
+                                    <svg
+                                      key={`${order._id}-feedback-${index + 1}`}
+                                      viewBox="0 0 24 24"
+                                      fill={
+                                        index + 1 <= Number(order.feedback.rating)
+                                          ? "currentColor"
+                                          : "none"
+                                      }
+                                      stroke="currentColor"
+                                      strokeWidth="1.8"
+                                      className={cn(
+                                        "h-4 w-4",
+                                        index + 1 <= Number(order.feedback.rating)
+                                          ? "text-gold"
+                                          : "text-cocoa/30",
+                                      )}
+                                    >
+                                      <path d="m12 3.8 2.6 5.27 5.82.84-4.21 4.1.99 5.79L12 17.05 6.8 19.8l.99-5.79-4.21-4.1 5.82-.84L12 3.8Z" />
+                                    </svg>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="mt-3 grid gap-2 text-xs sm:grid-cols-2">
+                                <p>
+                                  <span className="font-semibold text-cocoa/82">
+                                    Name:
+                                  </span>{" "}
+                                  {order.feedback.customerName ||
+                                    order.userId?.fullName ||
+                                    "Customer"}
+                                </p>
+                                <p>
+                                  <span className="font-semibold text-cocoa/82">
+                                    Phone:
+                                  </span>{" "}
+                                  {order.feedback.customerPhone ||
+                                    order.userId?.phone ||
+                                    "Unavailable"}
+                                </p>
+                              </div>
+                              {order.feedback.comment && (
+                                <p className="mt-3 rounded-[0.9rem] border border-current/10 bg-white/30 px-3 py-2 text-xs leading-5 text-cocoa/78 dark:bg-black/15">
+                                  {order.feedback.comment}
+                                </p>
+                              )}
+                            </div>
+                          ) : null}
                         </div>
                       ))}
                     </div>

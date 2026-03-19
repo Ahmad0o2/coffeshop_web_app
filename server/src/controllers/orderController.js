@@ -3,7 +3,11 @@ import Product from '../models/Product.js'
 import RewardRedemption from '../models/RewardRedemption.js'
 import User from '../models/User.js'
 import asyncHandler from '../utils/asyncHandler.js'
-import { createOrderSchema } from '../validators/order.js'
+import {
+  createOrderSchema,
+  orderFeedbackSchema,
+  updateOrderSchema,
+} from '../validators/order.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
 
 const buildProductImageUrl = (product) => {
@@ -39,6 +43,20 @@ const emitOrderUpdate = (req, order, event, action, extra = {}) => {
     order,
     ...extra,
   })
+}
+
+const canManageOrdersForUser = (user) =>
+  user?.role === 'Admin' ||
+  (user?.role === 'Staff' && (user?.permissions || []).includes('manageOrders'))
+
+const loadOrderWithRelations = (orderId, { includeUser = false } = {}) => {
+  let query = Order.findById(orderId).populate('items.productId')
+
+  if (includeUser) {
+    query = query.populate('userId', 'fullName phone email')
+  }
+
+  return query
 }
 
 const restoreRewardRedemptionsForOrder = async (order) => {
@@ -179,26 +197,24 @@ const restoreInventoryForItems = async (items = []) => {
   }
 }
 
-export const createOrder = asyncHandler(async (req, res) => {
-  const payload = createOrderSchema.parse(req.body)
-  const rewardRedemptionIds = [...new Set(payload.rewardRedemptionIds || [])]
-  const productIds = payload.items.map((item) => item.productId)
+const buildRegularOrderItems = async (items = []) => {
+  const productIds = items.map((item) => item.productId)
   const products = await Product.find({ _id: { $in: productIds } })
+  const productMap = new Map(products.map((product) => [String(product._id), product]))
 
-  const productMap = new Map(products.map((p) => [String(p._id), p]))
-
-  const regularItems = payload.items.map((item) => {
+  return items.map((item) => {
     const product = productMap.get(item.productId)
     if (!product) {
       const error = new Error('Invalid product')
       error.statusCode = 400
       throw error
     }
+
     const sizeMatch = product.sizePrices?.find(
       (entry) => entry.size === item.selectedSize
     )
     const unitPrice = sizeMatch?.price ?? product.price
-    const lineTotal = unitPrice * item.quantity
+
     return {
       productId: product._id,
       quantity: item.quantity,
@@ -208,9 +224,15 @@ export const createOrder = asyncHandler(async (req, res) => {
       isRewardRedemption: false,
       selectedSize: item.selectedSize || '',
       selectedAddOns: item.selectedAddOns || [],
-      lineTotal,
+      lineTotal: unitPrice * item.quantity,
     }
   })
+}
+
+export const createOrder = asyncHandler(async (req, res) => {
+  const payload = createOrderSchema.parse(req.body)
+  const rewardRedemptionIds = [...new Set(payload.rewardRedemptionIds || [])]
+  const regularItems = await buildRegularOrderItems(payload.items)
 
   const rewardRedemptions = rewardRedemptionIds.length
     ? await RewardRedemption.find({
@@ -338,30 +360,99 @@ export const createOrder = asyncHandler(async (req, res) => {
 })
 
 export const getOrders = asyncHandler(async (req, res) => {
-  const canManageOrders =
-    req.user.role === 'Admin' ||
-    (req.user.role === 'Staff' &&
-      (req.user.permissions || []).includes('manageOrders'))
+  const canManageOrders = canManageOrdersForUser(req.user)
   const filter = canManageOrders ? {} : { userId: req.user._id }
-  const orders = await Order.find(filter)
-    .populate('items.productId')
-    .sort({ createdAt: -1 })
+  let query = Order.find(filter).populate('items.productId').sort({ createdAt: -1 })
+
+  if (canManageOrders) {
+    query = query.populate('userId', 'fullName phone email')
+  }
+
+  const orders = await query
   res.json({ orders: orders.map(mapOrder) })
 })
 
 export const getOrderById = asyncHandler(async (req, res) => {
-  const order = await Order.findById(req.params.id).populate('items.productId')
+  const canManageOrders = canManageOrdersForUser(req.user)
+  const order = await loadOrderWithRelations(req.params.id, {
+    includeUser: canManageOrders,
+  })
   if (!order) {
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Order not found' })
   }
-  const canManageOrders =
-    req.user.role === 'Admin' ||
-    (req.user.role === 'Staff' &&
-      (req.user.permissions || []).includes('manageOrders'))
   if (!canManageOrders && String(order.userId) !== String(req.user._id)) {
     return res.status(403).json({ code: 'FORBIDDEN', message: 'Access denied' })
   }
   res.json({ order: mapOrder(order) })
+})
+
+export const updateOrder = asyncHandler(async (req, res) => {
+  const payload = updateOrderSchema.parse(req.body)
+  const order = await Order.findById(req.params.id)
+
+  if (!order) {
+    return res.status(404).json({ code: 'NOT_FOUND', message: 'Order not found' })
+  }
+
+  if (String(order.userId) !== String(req.user._id)) {
+    return res.status(403).json({ code: 'FORBIDDEN', message: 'Access denied' })
+  }
+
+  if (['Ready', 'Completed', 'Cancelled'].includes(order.status)) {
+    return res
+      .status(400)
+      .json({ code: 'INVALID', message: 'This order can no longer be edited.' })
+  }
+
+  const rewardItems = (order.items || []).filter((item) => item.isRewardRedemption)
+  const regularItems = await buildRegularOrderItems(payload.items || [])
+  const nextItems = [...regularItems, ...rewardItems]
+
+  if (nextItems.length === 0) {
+    return res.status(400).json({
+      code: 'INVALID',
+      message: 'Your order cannot be empty. Remove it by cancelling instead.',
+    })
+  }
+
+  const previousItems = (order.items || []).map((item) =>
+    typeof item.toObject === 'function' ? item.toObject() : item
+  )
+  let nextInventoryReserved = false
+
+  await restoreInventoryForItems(previousItems)
+
+  try {
+    await reserveInventoryForItems(nextItems)
+    nextInventoryReserved = true
+
+    order.items = nextItems
+    order.totalAmount = nextItems.reduce(
+      (sum, item) => sum + Number(item.lineTotal || 0),
+      0
+    )
+
+    if (typeof payload.paymentMethod === 'string' && payload.paymentMethod.trim()) {
+      order.paymentMethod = payload.paymentMethod
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'specialInstructions')) {
+      order.specialInstructions = payload.specialInstructions || ''
+    }
+
+    await order.save()
+
+    const updatedOrder = await loadOrderWithRelations(order._id)
+    emitOrderUpdate(req, order, 'order:updated', 'updated')
+    res.json({ order: mapOrder(updatedOrder) })
+  } catch (error) {
+    if (nextInventoryReserved) {
+      await restoreInventoryForItems(nextItems)
+    }
+
+    await reserveInventoryForItems(previousItems)
+    throw error
+  }
 })
 
 export const updateOrderStatus = asyncHandler(async (req, res) => {
@@ -407,11 +498,14 @@ export const cancelOrder = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Order not found' })
   }
-  if (String(order.userId) !== String(req.user._id) && req.user.role === 'Customer') {
+  const canManageOrders = canManageOrdersForUser(req.user)
+  if (!canManageOrders && String(order.userId) !== String(req.user._id)) {
     return res.status(403).json({ code: 'FORBIDDEN', message: 'Access denied' })
   }
-  if (['Completed', 'Cancelled'].includes(order.status)) {
-    return res.status(400).json({ code: 'INVALID', message: 'Cannot cancel' })
+  if (['Ready', 'Completed', 'Cancelled'].includes(order.status)) {
+    return res
+      .status(400)
+      .json({ code: 'INVALID', message: 'This order can no longer be cancelled.' })
   }
   order.status = 'Cancelled'
   await order.save()
@@ -429,7 +523,7 @@ export const deleteOrderItem = asyncHandler(async (req, res) => {
   if (String(order.userId) !== String(req.user._id)) {
     return res.status(403).json({ code: 'FORBIDDEN', message: 'Access denied' })
   }
-  if (order.status !== 'Received') {
+  if (['Ready', 'Completed', 'Cancelled'].includes(order.status)) {
     return res
       .status(400)
       .json({ code: 'INVALID', message: 'Cannot edit this order' })
@@ -466,5 +560,45 @@ export const deleteOrderItem = asyncHandler(async (req, res) => {
     )
   }
 
-  res.json({ order })
+  const updatedOrder = await loadOrderWithRelations(order._id)
+  res.json({ order: mapOrder(updatedOrder) })
+})
+
+export const submitOrderFeedback = asyncHandler(async (req, res) => {
+  const payload = orderFeedbackSchema.parse(req.body)
+  const order = await Order.findById(req.params.id)
+
+  if (!order) {
+    return res.status(404).json({ code: 'NOT_FOUND', message: 'Order not found' })
+  }
+
+  if (String(order.userId) !== String(req.user._id)) {
+    return res.status(403).json({ code: 'FORBIDDEN', message: 'Access denied' })
+  }
+
+  if (order.status !== 'Completed') {
+    return res.status(400).json({
+      code: 'INVALID',
+      message: 'Feedback is available after the order is completed.',
+    })
+  }
+
+  const currentUser = await User.findById(req.user._id).select('fullName phone email')
+
+  order.feedback = {
+    rating: payload.rating,
+    comment: payload.comment || '',
+    submittedAt: new Date(),
+    customerName: currentUser?.fullName || req.user.fullName || '',
+    customerPhone: currentUser?.phone || req.user.phone || '',
+    customerEmail: currentUser?.email || req.user.email || '',
+  }
+
+  await order.save()
+
+  const updatedOrder = await loadOrderWithRelations(order._id, { includeUser: true })
+  emitOrderUpdate(req, order, 'order:feedback', 'feedback-submitted', {
+    feedback: order.feedback,
+  })
+  res.json({ order: mapOrder(updatedOrder) })
 })

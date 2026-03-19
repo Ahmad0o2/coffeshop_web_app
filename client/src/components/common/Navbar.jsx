@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, Link, useLocation } from "react-router-dom";
+import { io } from "socket.io-client";
 import useCart from "../../hooks/useCart";
 import useAuth from "../../hooks/useAuth";
 import useSettings from "../../hooks/useSettings";
@@ -19,7 +20,12 @@ const fetchRewardHistory = async () => {
   const { data } = await api.get("/rewards/history");
   return data.redemptions || [];
 };
+const fetchAdminOrders = async () => {
+  const { data } = await api.get("/orders");
+  return data.orders || [];
+};
 const defaultLogoSrc = "/brand_logo.webp";
+const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
 export default function Navbar() {
   const { items, lastAdded, selectedRewardRedemptions } = useCart();
@@ -27,6 +33,7 @@ export default function Navbar() {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
+  const queryClient = useQueryClient();
   const [isDesktopViewport, setIsDesktopViewport] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(min-width: 1024px)").matches;
@@ -54,6 +61,16 @@ export default function Navbar() {
   const canManageEvents = isAdmin || permissions.includes("manageEvents");
   const canManageRewards = isAdmin || permissions.includes("manageRewards");
   const canManageBrand = isAdmin || permissions.includes("manageBrand");
+  const { data: adminNavbarOrders = [] } = useQuery({
+    queryKey: ["navbar-admin-orders"],
+    queryFn: fetchAdminOrders,
+    enabled: isAuthenticated && canManageOrders,
+    refetchOnMount: "always",
+    refetchInterval: 30000,
+  });
+  const newAdminOrdersCount = adminNavbarOrders.filter(
+    (order) => order.status === "Received",
+  ).length;
   const isDayTheme = theme === "day";
   const navClass = ({ isActive }) =>
     isDayTheme
@@ -127,7 +144,12 @@ export default function Navbar() {
     ].join(" ");
   const adminMobileNavItems = [
     { to: "/admin", label: "Dashboard", enabled: isDashboardUser },
-    { to: "/admin?tab=orders", label: "Orders", enabled: canManageOrders },
+    {
+      to: "/admin?tab=orders",
+      label: "Orders",
+      enabled: canManageOrders,
+      alertCount: newAdminOrdersCount,
+    },
     { to: "/admin?tab=products", label: "Products", enabled: canManageProducts },
     { to: "/admin?tab=inventory", label: "Inventory", enabled: canManageProducts },
     { to: "/admin?tab=rewards", label: "Rewards", enabled: canManageRewards },
@@ -137,6 +159,28 @@ export default function Navbar() {
     { to: "/admin?tab=manage", label: "Manage", enabled: isAdmin },
     { to: "/admin/activity", label: "Activity Log", enabled: isAdmin },
   ].filter((item) => item.enabled);
+
+  useEffect(() => {
+    if (!isAuthenticated || !canManageOrders) return undefined;
+
+    const socket = io(socketUrl);
+    const syncAdminOrders = () => {
+      queryClient.invalidateQueries({ queryKey: ["navbar-admin-orders"] });
+    };
+
+    socket.on("order:new", syncAdminOrders);
+    socket.on("order:status", syncAdminOrders);
+    socket.on("order:updated", syncAdminOrders);
+    socket.on("order:feedback", syncAdminOrders);
+
+    return () => {
+      socket.off("order:new", syncAdminOrders);
+      socket.off("order:status", syncAdminOrders);
+      socket.off("order:updated", syncAdminOrders);
+      socket.off("order:feedback", syncAdminOrders);
+      socket.disconnect();
+    };
+  }, [canManageOrders, isAuthenticated, queryClient]);
   const isAdminDrawerItemActive = (to) => {
     const [pathname, search = ""] = to.split("?");
     if (location.pathname !== pathname) return false;
@@ -247,7 +291,14 @@ export default function Navbar() {
               <>
                 {isDashboardUser && (
                   <NavLink to="/admin" className={navClass}>
-                    Admin Dashboard
+                    <span className="inline-flex items-center gap-2">
+                      <span>Admin Dashboard</span>
+                      {canManageOrders && newAdminOrdersCount > 0 && (
+                        <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-semibold text-obsidian">
+                          {newAdminOrdersCount}
+                        </span>
+                      )}
+                    </span>
                   </NavLink>
                 )}
                 <NavLink to="/orders" className={navClass}>
@@ -316,8 +367,13 @@ export default function Navbar() {
               className={mobileCloseClass}
               aria-label="Open menu"
             >
-              <span className={mobileMenuCircleClass}>
+              <span className={`${mobileMenuCircleClass} relative`}>
                 <MenuIcon className={mobileMenuIconClass} />
+                {canManageOrders && newAdminOrdersCount > 0 && (
+                  <span className="absolute -right-1 -top-1 inline-flex min-w-5 items-center justify-center rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-semibold text-obsidian">
+                    {newAdminOrdersCount}
+                  </span>
+                )}
               </span>
             </button>
           </div>
@@ -372,7 +428,14 @@ export default function Navbar() {
                               })}
                               onClick={handleCloseMenu}
                             >
-                              <span>{item.label}</span>
+                              <span className="inline-flex items-center gap-2">
+                                <span>{item.label}</span>
+                                {item.alertCount > 0 && (
+                                  <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-semibold text-obsidian">
+                                    {item.alertCount}
+                                  </span>
+                                )}
+                              </span>
                               <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
                                 &gt;
                               </span>

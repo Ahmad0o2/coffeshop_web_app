@@ -22,6 +22,18 @@ const orderItemSchema = new mongoose.Schema(
   }
 )
 
+const orderFeedbackSchema = new mongoose.Schema(
+  {
+    rating: { type: Number, min: 1, max: 5, required: true },
+    comment: { type: String, default: '' },
+    submittedAt: { type: Date, default: Date.now },
+    customerName: { type: String, default: '' },
+    customerPhone: { type: String, default: '' },
+    customerEmail: { type: String, default: '' },
+  },
+  { _id: false }
+)
+
 const orderSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -36,6 +48,7 @@ const orderSchema = new mongoose.Schema(
     scheduledPickupTime: { type: Date, default: null },
     specialInstructions: { type: String, default: '' },
     items: { type: [orderItemSchema], required: true },
+    feedback: { type: orderFeedbackSchema, default: null },
   },
   { timestamps: true }
 )

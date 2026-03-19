@@ -1,12 +1,14 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
+import { Textarea } from "../components/ui/textarea";
 import { Badge } from "../components/ui/badge";
 import SelectMenu from "../components/common/SelectMenu";
 import OrderStatus from "../components/order/OrderStatus";
+import OrderStars from "../components/order/OrderStars";
 import { io } from "socket.io-client";
 import { getApiErrorMessage } from "../utils/apiErrors";
 import { ListSkeleton } from "../components/common/PageSkeleton";
@@ -73,6 +75,20 @@ const formatOrderDateTime = (value) => {
   }).format(date);
 };
 
+const formatFeedbackDateTime = (value) => {
+  if (!value) return "Just now";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Just now";
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(date);
+};
+
 const getLocalDateKey = (value) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "unknown";
@@ -127,11 +143,37 @@ const groupOrdersByDay = (orders) => {
   return Array.from(grouped.values());
 };
 
+const isOrderEditableForCustomer = (status) =>
+  !["Ready", "Completed", "Cancelled"].includes(status);
+
+const buildEditableOrderDraft = (order) => ({
+  items: (order.items || [])
+    .filter((item) => !item.isRewardRedemption)
+    .map((item) => ({
+      id: item._id,
+      productId: item.productId?._id || item.productId,
+      name: item.productId?.name || "Item",
+      imageUrl: item.productId?.imageUrl || "",
+      quantity: Number(item.quantity) || 1,
+      selectedSize: item.selectedSize || "",
+      selectedAddOns: item.selectedAddOns || [],
+      unitPrice: Number(item.unitPrice || 0),
+    })),
+  rewardItems: (order.items || []).filter((item) => item.isRewardRedemption),
+  specialInstructions: order.specialInstructions || "",
+});
+
+const buildFeedbackDraft = (order) => ({
+  rating: Number(order.feedback?.rating || 0),
+  comment: order.feedback?.comment || "",
+});
+
 export default function Profile() {
   const { user, login, register, logout, isAuthenticated, refreshProfile } =
     useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mode, setMode] = useState("login");
   const [form, setForm] = useState({
     fullName: "",
@@ -143,7 +185,14 @@ export default function Profile() {
   const [error, setError] = useState("");
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [orderDayFilter, setOrderDayFilter] = useState("All Dates");
+  const [editingOrderId, setEditingOrderId] = useState("");
+  const [orderDrafts, setOrderDrafts] = useState({});
+  const [savingOrderId, setSavingOrderId] = useState("");
+  const [cancellingOrderId, setCancellingOrderId] = useState("");
+  const [feedbackDrafts, setFeedbackDrafts] = useState({});
+  const [submittingFeedbackOrderId, setSubmittingFeedbackOrderId] = useState("");
   const isDayTheme = theme === "day";
+  const justPlacedOrderId = location.state?.justPlacedOrderId || "";
   const orderFiltersCardClass = cn(
     "rounded-[1.2rem] border p-3 transition-colors",
     isDayTheme
@@ -174,6 +223,21 @@ export default function Profile() {
       ? "border-[#3f7674]/14 bg-[#eef7f6] text-cocoa/82"
       : "border-gold/14 bg-[rgba(27,21,18,0.88)] text-cocoa/76",
   );
+  const orderEditorClass = cn(
+    "mt-4 rounded-[1.1rem] border p-4 transition-colors",
+    isDayTheme
+      ? "border-[#3f7674]/16 bg-[#f3f9f8]"
+      : "border-gold/14 bg-[rgba(27,21,18,0.9)]",
+  );
+  const feedbackPanelClass = cn(
+    "mt-4 rounded-[1.1rem] border p-4 transition-colors",
+    isDayTheme
+      ? "border-[#3f7674]/16 bg-[#eef7f6]"
+      : "border-gold/14 bg-[rgba(27,21,18,0.9)]",
+  );
+  const highlightedOrderClass = isDayTheme
+    ? "ring-2 ring-[#3f7674]/18 ring-offset-2 ring-offset-[#f8fcfc]"
+    : "ring-2 ring-gold/20 ring-offset-2 ring-offset-[rgba(23,17,15,0.94)]";
 
   const filteredOrders = useMemo(
     () => orders.filter((order) => matchesOrderDateFilter(order.createdAt, orderDayFilter)),
@@ -183,6 +247,163 @@ export default function Profile() {
     () => groupOrdersByDay(filteredOrders),
     [filteredOrders],
   );
+
+  const replaceOrderInState = useCallback((nextOrder) => {
+    setOrders((prev) =>
+      prev.map((order) => (order._id === nextOrder._id ? nextOrder : order)),
+    );
+  }, []);
+
+  const startEditingOrder = (order) => {
+    setError("");
+    setEditingOrderId(order._id);
+    setOrderDrafts((prev) => ({
+      ...prev,
+      [order._id]: buildEditableOrderDraft(order),
+    }));
+  };
+
+  const stopEditingOrder = useCallback((orderId) => {
+    setEditingOrderId((current) => (current === orderId ? "" : current));
+    setOrderDrafts((prev) => {
+      const next = { ...prev };
+      delete next[orderId];
+      return next;
+    });
+  }, []);
+
+  const patchOrderDraft = useCallback((orderId, updater) => {
+    setOrderDrafts((prev) => {
+      const currentDraft = prev[orderId];
+      if (!currentDraft) return prev;
+      return {
+        ...prev,
+        [orderId]: updater(currentDraft),
+      };
+    });
+  }, []);
+
+  const updateDraftItemQuantity = (orderId, itemId, value) => {
+    patchOrderDraft(orderId, (draft) => ({
+      ...draft,
+      items: draft.items.map((item) =>
+        item.id === itemId ? { ...item, quantity: value } : item,
+      ),
+    }));
+  };
+
+  const removeDraftItem = (orderId, itemId) => {
+    patchOrderDraft(orderId, (draft) => ({
+      ...draft,
+      items: draft.items.filter((item) => item.id !== itemId),
+    }));
+  };
+
+  const handleSaveEditedOrder = async (orderId) => {
+    const draft = orderDrafts[orderId];
+    if (!draft) return;
+
+    const hasInvalidQuantity = draft.items.some(
+      (item) => !Number.isInteger(Number(item.quantity)) || Number(item.quantity) <= 0,
+    );
+
+    if (hasInvalidQuantity) {
+      setError("Use whole quantities greater than zero before saving the order.");
+      return;
+    }
+
+    setSavingOrderId(orderId);
+    setError("");
+
+    try {
+      const { data } = await api.patch(`/orders/${orderId}`, {
+        items: draft.items.map((item) => ({
+          productId: item.productId,
+          quantity: Number(item.quantity),
+          selectedSize: item.selectedSize,
+          selectedAddOns: item.selectedAddOns,
+        })),
+        specialInstructions: draft.specialInstructions,
+      });
+      replaceOrderInState(data.order);
+      stopEditingOrder(orderId);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "We couldn't update that order right now."));
+    } finally {
+      setSavingOrderId("");
+    }
+  };
+
+  const handleCancelOrder = async (orderId) => {
+    if (!window.confirm("Cancel this order now?")) return;
+
+    setCancellingOrderId(orderId);
+    setError("");
+
+    try {
+      const { data } = await api.post(`/orders/${orderId}/cancel`);
+      setOrders((prev) =>
+        prev.map((order) =>
+          order._id === orderId
+            ? { ...order, status: data.order?.status || "Cancelled" }
+            : order,
+        ),
+      );
+      stopEditingOrder(orderId);
+    } catch (err) {
+      setError(getApiErrorMessage(err, "We couldn't cancel that order right now."));
+    } finally {
+      setCancellingOrderId("");
+    }
+  };
+
+  const ensureFeedbackDraft = (order) => {
+    if (feedbackDrafts[order._id]) return feedbackDrafts[order._id];
+    const nextDraft = buildFeedbackDraft(order);
+    setFeedbackDrafts((prev) => ({
+      ...prev,
+      [order._id]: nextDraft,
+    }));
+    return nextDraft;
+  };
+
+  const handleFeedbackChange = (orderId, changes) => {
+    setFeedbackDrafts((prev) => ({
+      ...prev,
+      [orderId]: {
+        ...(prev[orderId] || { rating: 0, comment: "" }),
+        ...changes,
+      },
+    }));
+  };
+
+  const handleSubmitFeedback = async (order) => {
+    const draft = feedbackDrafts[order._id] || ensureFeedbackDraft(order);
+
+    if (!draft.rating) {
+      setError("Please choose a star rating before sending feedback.");
+      return;
+    }
+
+    setSubmittingFeedbackOrderId(order._id);
+    setError("");
+
+    try {
+      const { data } = await api.post(`/orders/${order._id}/feedback`, {
+        rating: draft.rating,
+        comment: draft.comment?.trim() || "",
+      });
+      replaceOrderInState(data.order);
+      setFeedbackDrafts((prev) => ({
+        ...prev,
+        [order._id]: buildFeedbackDraft(data.order),
+      }));
+    } catch (err) {
+      setError(getApiErrorMessage(err, "We couldn't send your feedback right now."));
+    } finally {
+      setSubmittingFeedbackOrderId("");
+    }
+  };
 
   const validateForm = () => {
     if (mode === "login") {
@@ -240,7 +461,7 @@ export default function Profile() {
         setOrders(response.data.orders || []);
       })
       .catch((err) => {
-        setError(err.response?.data?.message || "Failed to load orders.");
+        setError(getApiErrorMessage(err, "Failed to load orders."));
       })
       .finally(() => {
         setLoadingOrders(false);
@@ -275,6 +496,10 @@ export default function Profile() {
     const socket = io(socketUrl);
     const handler = (payload) => {
       if (!payload?.orderId) return;
+      if (payload.event === "order:updated" || payload.event === "order:feedback") {
+        loadOrders();
+        return;
+      }
       let updated = false;
       setOrders((prev) =>
         prev.map((order) => {
@@ -283,6 +508,7 @@ export default function Profile() {
           return {
             ...order,
             status: payload.status || order.status,
+            feedback: payload.feedback || order.feedback,
           };
         }),
       );
@@ -295,6 +521,8 @@ export default function Profile() {
     };
     socket.on("order:status", handler);
     socket.on("order:new", handler);
+    socket.on("order:updated", handler);
+    socket.on("order:feedback", handler);
     return () => socket.disconnect();
   }, [isAuthenticated, user?.id, loadOrders, refreshProfile]);
 
@@ -418,82 +646,341 @@ export default function Profile() {
               </div>
 
               <div className="mt-4 space-y-3">
-                {group.entries.map((order) => (
-                  <div
-                    key={order._id}
-                    className={orderCardClass}
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-medium text-cocoa/68">Order #{order._id}</p>
-                        <p className="mt-1 text-sm text-cocoa/76">
-                          Payment: {order.paymentMethod || "Cash"}
-                        </p>
-                        <p className="mt-1 text-xs text-cocoa/66">
-                          Placed: {formatOrderDateTime(order.createdAt)}
-                        </p>
-                      </div>
-                      <Badge>{order.status}</Badge>
-                    </div>
-                    <div className="mt-3">
-                      <OrderStatus status={order.status} />
-                    </div>
-                    <div className="mt-3 space-y-2">
-                      {(order.items || []).map((item) => (
-                        <div
-                          key={item._id}
-                          className={orderLineItemClass}
-                        >
-                          <div className="flex items-center gap-3">
-                            {item.productId?.imageUrl ? (
-                              <img
-                                src={item.productId.imageUrl}
-                                alt={item.productId?.name || "Item"}
-                                className="h-12 w-12 rounded-xl2 object-cover"
-                              />
-                            ) : (
-                              <div className="h-12 w-12 rounded-xl2 bg-gradient-to-br from-obsidian via-caramel to-gold" />
+                {group.entries.map((order) => {
+                  const isEditable = isOrderEditableForCustomer(order.status);
+                  const isEditing = editingOrderId === order._id;
+                  const editDraft =
+                    orderDrafts[order._id] || buildEditableOrderDraft(order);
+                  const feedbackDraft =
+                    feedbackDrafts[order._id] || buildFeedbackDraft(order);
+
+                  return (
+                    <div
+                      key={order._id}
+                      data-order-id={order._id}
+                      className={cn(
+                        orderCardClass,
+                        justPlacedOrderId === order._id && highlightedOrderClass,
+                      )}
+                    >
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="text-xs font-medium text-cocoa/68">
+                              Order #{order._id}
+                            </p>
+                            {justPlacedOrderId === order._id && (
+                              <Badge variant="highlight">Just placed</Badge>
                             )}
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-espresso">
-                                  {item.productId?.name || "Item"}
-                                </p>
-                                {item.isRewardRedemption && (
-                                  <span className="pill">Redeemed</span>
-                                )}
-                              </div>
-                              <p className="text-xs text-cocoa/72">
-                                {item.quantity}x {item.selectedSize || "Regular"} -{" "}
-                                {item.isRewardRedemption
-                                  ? "Free reward item"
-                                  : `${(item.unitPrice || 0).toFixed(2)} JD`}
-                              </p>
-                              {item.selectedAddOns?.length > 0 && (
-                                <p className="text-xs text-cocoa/72">
-                                  Add-ons: {item.selectedAddOns.join(", ")}
-                                </p>
-                              )}
-                            </div>
                           </div>
-                          <p className="text-xs font-medium text-cocoa/72">
-                            {item.isRewardRedemption
-                              ? "Free"
-                              : `${(item.lineTotal || 0).toFixed(2)} JD`}
+                          <p className="mt-1 text-sm text-cocoa/76">
+                            Payment: {order.paymentMethod || "Cash"}
+                          </p>
+                          <p className="mt-1 text-xs text-cocoa/66">
+                            Placed: {formatOrderDateTime(order.createdAt)}
                           </p>
                         </div>
-                      ))}
-                    </div>
-                    {order.specialInstructions && (
-                      <div className={orderNotesClass}>
-                        Notes: {order.specialInstructions}
+                        <Badge>{order.status}</Badge>
                       </div>
-                    )}
-                    <p className="mt-3 text-sm font-medium text-cocoa/78">
-                      Total: {order.totalAmount?.toFixed(2)} JD
-                    </p>
-                  </div>
-                ))}
+                      <div className="mt-3">
+                        <OrderStatus status={order.status} />
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {(order.items || []).map((item) => (
+                          <div key={item._id} className={orderLineItemClass}>
+                            <div className="flex items-center gap-3">
+                              {item.productId?.imageUrl ? (
+                                <img
+                                  src={item.productId.imageUrl}
+                                  alt={item.productId?.name || "Item"}
+                                  className="h-12 w-12 rounded-xl2 object-cover"
+                                />
+                              ) : (
+                                <div className="h-12 w-12 rounded-xl2 bg-gradient-to-br from-obsidian via-caramel to-gold" />
+                              )}
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="text-sm font-semibold text-espresso">
+                                    {item.productId?.name || "Item"}
+                                  </p>
+                                  {item.isRewardRedemption && (
+                                    <span className="pill">Redeemed</span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-cocoa/72">
+                                  {item.quantity}x {item.selectedSize || "Regular"} -{" "}
+                                  {item.isRewardRedemption
+                                    ? "Free reward item"
+                                    : `${(item.unitPrice || 0).toFixed(2)} JD`}
+                                </p>
+                                {item.selectedAddOns?.length > 0 && (
+                                  <p className="text-xs text-cocoa/72">
+                                    Add-ons: {item.selectedAddOns.join(", ")}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <p className="text-xs font-medium text-cocoa/72">
+                              {item.isRewardRedemption
+                                ? "Free"
+                                : `${(item.lineTotal || 0).toFixed(2)} JD`}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      {order.specialInstructions && (
+                        <div className={orderNotesClass}>
+                          Notes: {order.specialInstructions}
+                        </div>
+                      )}
+
+                      <div className="mt-4 flex flex-wrap items-center gap-2">
+                        {isEditable && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant={isEditing ? "default" : "secondary"}
+                              onClick={() =>
+                                isEditing
+                                  ? stopEditingOrder(order._id)
+                                  : startEditingOrder(order)
+                              }
+                            >
+                              {isEditing ? "Close Editor" : "Edit Order"}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={cancellingOrderId === order._id}
+                              onClick={() => handleCancelOrder(order._id)}
+                            >
+                              {cancellingOrderId === order._id
+                                ? "Cancelling..."
+                                : "Cancel Order"}
+                            </Button>
+                          </>
+                        )}
+                        {!isEditable && order.status === "Ready" && (
+                          <p className="text-xs text-cocoa/62">
+                            This order is already ready, so changes are locked.
+                          </p>
+                        )}
+                      </div>
+
+                      {isEditing && (
+                        <div className={orderEditorClass}>
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-espresso">
+                                Edit this order
+                              </p>
+                              <p className="mt-1 text-xs text-cocoa/65">
+                                You can adjust quantities and notes until the order
+                                reaches Ready.
+                              </p>
+                            </div>
+                            <Badge>{editDraft.items.length} editable items</Badge>
+                          </div>
+
+                          <div className="mt-4 space-y-3">
+                            {editDraft.items.map((item) => (
+                              <div
+                                key={item.id}
+                                className={cn(
+                                  "rounded-[1rem] border px-3 py-3",
+                                  isDayTheme
+                                    ? "border-[#3f7674]/14 bg-[#fbfdfd]"
+                                    : "border-gold/14 bg-[rgba(21,16,14,0.84)]",
+                                )}
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                  <div className="flex items-center gap-3">
+                                    {item.imageUrl ? (
+                                      <img
+                                        src={item.imageUrl}
+                                        alt={item.name}
+                                        className="h-11 w-11 rounded-xl2 object-cover"
+                                      />
+                                    ) : (
+                                      <div className="h-11 w-11 rounded-xl2 bg-gradient-to-br from-obsidian via-caramel to-gold" />
+                                    )}
+                                    <div>
+                                      <p className="text-sm font-semibold text-espresso">
+                                        {item.name}
+                                      </p>
+                                      <p className="text-xs text-cocoa/65">
+                                        {item.selectedSize || "Regular"} -{" "}
+                                        {(item.unitPrice || 0).toFixed(2)} JD
+                                      </p>
+                                      {item.selectedAddOns?.length > 0 && (
+                                        <p className="text-xs text-cocoa/65">
+                                          Add-ons: {item.selectedAddOns.join(", ")}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      type="number"
+                                      min="1"
+                                      value={item.quantity}
+                                      onChange={(event) =>
+                                        updateDraftItemQuantity(
+                                          order._id,
+                                          item.id,
+                                          Number(event.target.value),
+                                        )
+                                      }
+                                      className="w-20"
+                                    />
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      onClick={() => removeDraftItem(order._id, item.id)}
+                                    >
+                                      Remove
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+
+                            {editDraft.rewardItems.length > 0 && (
+                              <div
+                                className={cn(
+                                  "rounded-[1rem] border px-3 py-2.5 text-xs",
+                                  isDayTheme
+                                    ? "border-[#3f7674]/14 bg-[#eaf5f4] text-cocoa/78"
+                                    : "border-gold/14 bg-[rgba(27,21,18,0.88)] text-cocoa/74",
+                                )}
+                              >
+                                Redeemed reward items stay attached to this order and
+                                stay free during editing.
+                              </div>
+                            )}
+
+                            <div>
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
+                                Special Instructions
+                              </p>
+                              <Textarea
+                                rows="3"
+                                value={editDraft.specialInstructions}
+                                onChange={(event) =>
+                                  patchOrderDraft(order._id, (draft) => ({
+                                    ...draft,
+                                    specialInstructions: event.target.value,
+                                  }))
+                                }
+                              />
+                            </div>
+
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                size="sm"
+                                disabled={savingOrderId === order._id}
+                                onClick={() => handleSaveEditedOrder(order._id)}
+                              >
+                                {savingOrderId === order._id
+                                  ? "Saving..."
+                                  : "Save Changes"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => stopEditingOrder(order._id)}
+                              >
+                                Discard
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {order.status === "Completed" && (
+                        <div className={feedbackPanelClass}>
+                          <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-semibold text-espresso">
+                                Order Feedback
+                              </p>
+                              <p className="mt-1 text-xs text-cocoa/65">
+                                Rate this order and send a quick note to the cafe
+                                team.
+                              </p>
+                            </div>
+                            {order.feedback?.submittedAt && (
+                              <Badge variant="highlight">
+                                Sent {formatFeedbackDateTime(order.feedback.submittedAt)}
+                              </Badge>
+                            )}
+                          </div>
+
+                          <div className="mt-4 space-y-4">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
+                                Your Rating
+                              </p>
+                              <OrderStars
+                                value={feedbackDraft.rating}
+                                onChange={(rating) =>
+                                  handleFeedbackChange(order._id, { rating })
+                                }
+                                className="mt-2"
+                              />
+                            </div>
+
+                            <div>
+                              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
+                                Notes for the team
+                              </p>
+                              <Textarea
+                                rows="3"
+                                placeholder="Tell us how the order went."
+                                value={feedbackDraft.comment}
+                                onChange={(event) =>
+                                  handleFeedbackChange(order._id, {
+                                    comment: event.target.value,
+                                  })
+                                }
+                              />
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3">
+                              <Button
+                                size="sm"
+                                disabled={submittingFeedbackOrderId === order._id}
+                                onClick={() => handleSubmitFeedback(order)}
+                              >
+                                {submittingFeedbackOrderId === order._id
+                                  ? "Sending..."
+                                  : order.feedback
+                                    ? "Update Feedback"
+                                    : "Send Feedback"}
+                              </Button>
+                              {order.feedback?.rating ? (
+                                <div className="flex items-center gap-2 text-xs text-cocoa/68">
+                                  <OrderStars
+                                    value={Number(order.feedback.rating)}
+                                    readOnly
+                                  />
+                                  <span>
+                                    Shared with the cafe team under your order
+                                    details.
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <p className="mt-3 text-sm font-medium text-cocoa/78">
+                        Total: {order.totalAmount?.toFixed(2)} JD
+                      </p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))

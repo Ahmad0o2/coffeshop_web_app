@@ -26,6 +26,10 @@ const buildActivitySummary = (event, payload = {}, actor = null) => {
       return `${actorName} created order #${String(payload.orderId || '').slice(-6)}`
     case 'order:status':
       return `${actorName} changed order #${String(payload.orderId || '').slice(-6)} to ${payload.status || 'updated'}`
+    case 'order:updated':
+      return `${actorName} updated order #${String(payload.orderId || '').slice(-6)}`
+    case 'order:feedback':
+      return `${actorName} left feedback for order #${String(payload.orderId || '').slice(-6)}`
     case 'catalog:changed':
       return `${actorName} ${payload.action || 'updated'} ${payload.entity || 'catalog item'}${
         subject ? ` (${subject})` : ''
