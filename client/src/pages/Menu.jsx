@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import api from "../services/api";
 import ProductCard from "../components/menu/ProductCard";
 import useCart from "../hooks/useCart";
+import useTheme from "../hooks/useTheme";
 import useRealtimeInvalidation from "../hooks/useRealtimeInvalidation";
 import SelectMenu from "../components/common/SelectMenu";
 import { FilterIcon, SearchIcon, SparkIcon } from "../components/common/Icons";
@@ -10,6 +11,7 @@ import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { PageHeroSkeleton } from "../components/common/PageSkeleton";
+import { cn } from "../lib/utils";
 import {
   loadOrderEditSession,
 } from "../utils/orderEditSession";
@@ -29,6 +31,7 @@ export default function Menu() {
   const location = useLocation();
   const navigate = useNavigate();
   const { addItem } = useCart();
+  const { theme } = useTheme();
   const [filters, setFilters] = useState({
     category: "",
     search: "",
@@ -45,6 +48,13 @@ export default function Menu() {
       return loadOrderEditSession();
     },
     [location.key],
+  );
+  const isDayTheme = theme === "day";
+  const orderEditBannerClass = cn(
+    "flex flex-wrap items-center justify-between gap-3 rounded-[1.35rem] border px-5 py-4 shadow-[0_18px_34px_rgba(19,14,12,0.14)]",
+    isDayTheme
+      ? "border-[#3f7674]/18 bg-[#f8fcfc] text-espresso"
+      : "border-gold/18 bg-[#17110f] text-cream",
   );
   const realtimeBindings = useMemo(
     () => [
@@ -189,22 +199,22 @@ export default function Menu() {
   return (
     <section className="section-shell">
       {orderEditSession?.orderId && (
-        <div className="sticky top-20 z-20 mb-5">
-          <div className="card flex flex-wrap items-center justify-between gap-3 border border-gold/18 px-5 py-4">
+        <div className="sticky top-24 z-20 mb-6 pt-2">
+          <div className={orderEditBannerClass}>
             <div>
-              <p className="text-sm font-semibold text-espresso">
+              <p className={cn("text-sm font-semibold", isDayTheme ? "text-espresso" : "text-cream")}>
                 Adding to order #{orderEditSession.orderId}
               </p>
-              <p className="mt-1 text-xs text-cocoa/68">
+              <p className={cn("mt-1 text-xs", isDayTheme ? "text-cocoa/68" : "text-cocoa/78")}>
                 Pick a menu item, open it, then attach it to the same order.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={handleReturnToOrder}>
-                Return To Editor
+                Back To Your Order
               </Button>
               <Button size="sm" variant="outline" onClick={handleCancelOrderEditFlow}>
-                Stop Adding
+                Cancel Adding
               </Button>
             </div>
           </div>

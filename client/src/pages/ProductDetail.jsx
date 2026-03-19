@@ -4,11 +4,13 @@ import { useQuery } from '@tanstack/react-query'
 import api from '../services/api'
 import useCart from '../hooks/useCart'
 import useAuth from '../hooks/useAuth'
+import useTheme from '../hooks/useTheme'
 import SelectMenu from '../components/common/SelectMenu'
 import { Button } from '../components/ui/button'
 import { DetailSkeleton } from '../components/common/PageSkeleton'
 import { getUnitPrice, normalizeSizePrices } from '../utils/pricing'
 import useRealtimeInvalidation from '../hooks/useRealtimeInvalidation'
+import { cn } from '../lib/utils'
 import {
   buildOrderDraftItem,
   loadOrderEditSession,
@@ -31,6 +33,7 @@ export default function ProductDetail() {
   const location = useLocation()
   const { addItem } = useCart()
   const { isAuthenticated } = useAuth()
+  const { theme } = useTheme()
   const [selectedSize, setSelectedSize] = useState('')
   const [selectedAddOns, setSelectedAddOns] = useState([])
   const orderEditSession = useMemo(
@@ -82,6 +85,13 @@ export default function ProductDetail() {
   const inventoryQuantity = getInventoryQuantity(product)
   const canOrder = canOrderProduct(product)
   const isLowStock = isProductLowStock(product)
+  const isDayTheme = theme === 'day'
+  const orderEditBannerClass = cn(
+    'flex flex-wrap items-center justify-between gap-3 rounded-[1.35rem] border px-5 py-4 shadow-[0_18px_34px_rgba(19,14,12,0.14)]',
+    isDayTheme
+      ? 'border-[#3f7674]/18 bg-[#f8fcfc] text-espresso'
+      : 'border-gold/18 bg-[#17110f] text-cream'
+  )
 
   const handleReturnToOrder = () => {
     if (!activeOrderEditSession?.orderId) return
@@ -156,23 +166,33 @@ export default function ProductDetail() {
   return (
     <section className="section-shell max-w-4xl">
       {activeOrderEditSession?.orderId && (
-        <div className="sticky top-20 z-20 mb-5">
-          <div className="card flex flex-wrap items-center justify-between gap-3 border border-gold/18 px-5 py-4">
+        <div className="sticky top-24 z-20 mb-6 pt-2">
+          <div className={orderEditBannerClass}>
             <div>
-              <p className="text-sm font-semibold text-espresso">
+              <p
+                className={cn(
+                  'text-sm font-semibold',
+                  isDayTheme ? 'text-espresso' : 'text-cream'
+                )}
+              >
                 Adding to order #{activeOrderEditSession.orderId}
               </p>
-              <p className="mt-1 text-xs text-cocoa/68">
+              <p
+                className={cn(
+                  'mt-1 text-xs',
+                  isDayTheme ? 'text-cocoa/68' : 'text-cocoa/78'
+                )}
+              >
                 Customize this item, then attach it to the order and jump back to
-                the editor.
+                your order.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={handleReturnToOrder}>
-                Return To Editor
+                Back To Your Order
               </Button>
               <Button size="sm" variant="outline" onClick={handleCancelOrderEditFlow}>
-                Stop Adding
+                Cancel Adding
               </Button>
             </div>
           </div>
