@@ -1,8 +1,10 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../services/api";
 import ProductCard from "../components/menu/ProductCard";
 import useCart from "../hooks/useCart";
+import useAuth from "../hooks/useAuth";
+import useSettings from "../hooks/useSettings";
 import useTheme from "../hooks/useTheme";
 import useRealtimeInvalidation from "../hooks/useRealtimeInvalidation";
 import SelectMenu from "../components/common/SelectMenu";
@@ -30,7 +32,10 @@ const fetchProducts = async () => {
 export default function Menu() {
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
   const { addItem } = useCart();
+  const { data: settings } = useSettings();
   const { theme } = useTheme();
   const [filters, setFilters] = useState({
     category: "",
@@ -42,6 +47,15 @@ export default function Menu() {
     showUnavailable: false,
   });
   const [showFilters, setShowFilters] = useState(false);
+  const [highlightSavingKey, setHighlightSavingKey] = useState("");
+  const [highlightPickerError, setHighlightPickerError] = useState("");
+  const searchParams = useMemo(
+    () => new URLSearchParams(location.search),
+    [location.search],
+  );
+  const isAdminHomePicker =
+    ["Admin", "Staff"].includes(user?.role) &&
+    searchParams.get("adminPicker") === "home-highlights";
   const orderEditSession = useMemo(
     () => {
       void location.key;
@@ -54,6 +68,12 @@ export default function Menu() {
     "flex flex-wrap items-center justify-between gap-3 rounded-[1.35rem] border px-5 py-4 shadow-[0_18px_34px_rgba(19,14,12,0.14)]",
     isDayTheme
       ? "border-[#3f7674]/18 bg-[#f8fcfc] text-espresso"
+      : "border-gold/18 bg-[#17110f] text-cream",
+  );
+  const adminPickerBannerClass = cn(
+    "flex flex-wrap items-center justify-between gap-3 rounded-[1.35rem] border px-5 py-4 shadow-[0_18px_34px_rgba(19,14,12,0.14)]",
+    isDayTheme
+      ? "border-[#3f7674]/18 bg-[#eef7f6] text-espresso"
       : "border-gold/18 bg-[#17110f] text-cream",
   );
   const realtimeBindings = useMemo(
@@ -172,6 +192,9 @@ export default function Menu() {
     setShowFilters(false);
   };
 
+  const currentTodaysSpecialId = settings?.todaysSpecialProductId || "";
+  const currentFeaturedIds = settings?.featuredProductIds || [];
+
   const handleReturnToOrder = () => {
     if (!orderEditSession?.orderId) return;
     navigate("/orders", {
@@ -182,12 +205,101 @@ export default function Menu() {
     });
   };
 
+  const handleReturnToAdminHighlights = () => {
+    navigate("/admin?tab=brand");
+  };
+
+  const saveAdminHomeHighlights = async ({
+    nextTodaysSpecialId = currentTodaysSpecialId,
+    nextFeaturedIds = currentFeaturedIds,
+    savingKey = "",
+  }) => {
+    setHighlightSavingKey(savingKey);
+    setHighlightPickerError("");
+    try {
+      const formData = new FormData();
+      formData.append("todaysSpecialProductId", nextTodaysSpecialId);
+      formData.append("featuredProductIds", JSON.stringify(nextFeaturedIds));
+      const { data } = await api.put("/admin/settings", formData);
+      if (data?.settings) {
+        queryClient.setQueryData(["settings"], data.settings);
+      }
+    } catch {
+      setHighlightPickerError("Couldn’t update the Home highlights right now.");
+    } finally {
+      setHighlightSavingKey("");
+    }
+  };
+
+  const handleSetTodaysSpecial = async (productId) => {
+    await saveAdminHomeHighlights({
+      nextTodaysSpecialId: productId,
+      savingKey: `special-${productId}`,
+    });
+  };
+
+  const handleToggleFeaturedProduct = async (productId) => {
+    const alreadySelected = currentFeaturedIds.includes(productId);
+    if (!alreadySelected && currentFeaturedIds.length >= 6) {
+      setHighlightPickerError("You can only keep up to 6 products on Home.");
+      return;
+    }
+
+    const nextFeaturedIds = alreadySelected
+      ? currentFeaturedIds.filter((id) => id !== productId)
+      : [...currentFeaturedIds, productId];
+
+    await saveAdminHomeHighlights({
+      nextFeaturedIds,
+      savingKey: `featured-${productId}`,
+    });
+  };
+
   if (categoriesLoading || productsLoading) {
     return <PageHeroSkeleton cards={6} sidebar />;
   }
 
   return (
     <section className="section-shell">
+      {isAdminHomePicker && (
+        <div className="sticky top-24 z-20 mb-6 pt-2">
+          <div className={adminPickerBannerClass}>
+            <div>
+              <p
+                className={cn(
+                  "text-sm font-semibold",
+                  isDayTheme ? "text-espresso" : "text-cream",
+                )}
+              >
+                Home highlights picker
+              </p>
+              <p
+                className={cn(
+                  "mt-1 text-xs",
+                  isDayTheme ? "text-cocoa/68" : "text-cocoa/78",
+                )}
+              >
+                Choose items directly from the menu. Use{" "}
+                <span className="font-semibold">Add to Home</span> or{" "}
+                <span className="font-semibold">Today&apos;s Special</span>,
+                then head back when you&apos;re done.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={handleReturnToAdminHighlights}
+              >
+                Back
+              </Button>
+            </div>
+          </div>
+          {highlightPickerError && (
+            <p className="form-error mt-3">{highlightPickerError}</p>
+          )}
+        </div>
+      )}
       {orderEditSession?.orderId && (
         <div className="sticky top-24 z-20 mb-6 pt-2">
           <div className={orderEditBannerClass}>
@@ -381,6 +493,52 @@ export default function Menu() {
                   product={product}
                   onAdd={addItem}
                   orderEditSession={orderEditSession}
+                  customActions={
+                    isAdminHomePicker ? (
+                      <>
+                        <Button
+                          type="button"
+                          variant={
+                            currentTodaysSpecialId === product._id
+                              ? "default"
+                              : "secondary"
+                          }
+                          className="w-full"
+                          disabled={highlightSavingKey === `special-${product._id}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleSetTodaysSpecial(product._id);
+                          }}
+                        >
+                          {highlightSavingKey === `special-${product._id}`
+                            ? "Saving..."
+                            : currentTodaysSpecialId === product._id
+                              ? "Today's Special"
+                              : "Set as Today's Special"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={
+                            currentFeaturedIds.includes(product._id)
+                              ? "default"
+                              : "outline"
+                          }
+                          className="w-full"
+                          disabled={highlightSavingKey === `featured-${product._id}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            void handleToggleFeaturedProduct(product._id);
+                          }}
+                        >
+                          {highlightSavingKey === `featured-${product._id}`
+                            ? "Saving..."
+                            : currentFeaturedIds.includes(product._id)
+                              ? "Remove from Home"
+                              : "Add to Home"}
+                        </Button>
+                      </>
+                    ) : null
+                  }
                 />
               ))
             )}

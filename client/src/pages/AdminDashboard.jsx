@@ -730,8 +730,6 @@ export default function AdminDashboard() {
   const [featuredProductsSelection, setFeaturedProductsSelection] = useState(
     [],
   );
-  const [homeProductsSaving, setHomeProductsSaving] = useState(false);
-  const [homeProductsError, setHomeProductsError] = useState("");
   const [staffForm, setStaffForm] = useState({
     id: "",
     fullName: "",
@@ -831,6 +829,21 @@ export default function AdminDashboard() {
   const categoryMap = useMemo(
     () => new Map(categories.map((cat) => [cat._id, cat.name])),
     [categories],
+  );
+  const productMap = useMemo(
+    () => new Map(products.map((product) => [product._id, product])),
+    [products],
+  );
+  const selectedTodaysSpecialProduct = useMemo(
+    () => productMap.get(todaysSpecialId) || null,
+    [productMap, todaysSpecialId],
+  );
+  const selectedFeaturedProducts = useMemo(
+    () =>
+      featuredProductsSelection
+        .map((productId) => productMap.get(productId))
+        .filter(Boolean),
+    [featuredProductsSelection, productMap],
   );
   const selectedRewardProduct = useMemo(
     () =>
@@ -1069,6 +1082,23 @@ export default function AdminDashboard() {
     return [];
   };
 
+  const formatAdminProductPrice = (product) => {
+    const prices = normalizeSizePrices(product)
+      .map((entry) => Number(entry.price))
+      .filter((value) => Number.isFinite(value));
+
+    if (!prices.length) return "Price not set";
+
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+
+    if (minPrice === maxPrice) {
+      return `${minPrice.toFixed(2)} JD`;
+    }
+
+    return `${minPrice.toFixed(2)} - ${maxPrice.toFixed(2)} JD`;
+  };
+
   if (!isAuthenticated || availableTabs.length === 0) {
     return (
       <section className="mx-auto w-full max-w-4xl px-6 py-12">
@@ -1106,6 +1136,8 @@ export default function AdminDashboard() {
     setHeroFile(null);
     setLogoPreview("");
     setHeroPreview("");
+    setTodaysSpecialId(settings?.todaysSpecialProductId || "");
+    setFeaturedProductsSelection(settings?.featuredProductIds || []);
     setClearBrand({
       logo: false,
       hero: false,
@@ -1582,44 +1614,6 @@ export default function AdminDashboard() {
       setRewardError(getApiErrorMessage(err, "Failed to delete reward."));
     } finally {
       setRewardSaving(false);
-    }
-  };
-
-  const toggleFeaturedProduct = (productId) => {
-    setHomeProductsError("");
-    setFeaturedProductsSelection((prev) => {
-      if (prev.includes(productId)) {
-        return prev.filter((id) => id !== productId);
-      }
-      if (prev.length >= 6) {
-        setHomeProductsError("Select up to 6 popular products.");
-        return prev;
-      }
-      return [...prev, productId];
-    });
-  };
-
-  const saveHomeProducts = async () => {
-    setHomeProductsSaving(true);
-    setHomeProductsError("");
-    try {
-      const formData = new FormData();
-      formData.append("todaysSpecialProductId", todaysSpecialId);
-      formData.append(
-        "featuredProductIds",
-        JSON.stringify(featuredProductsSelection),
-      );
-      const { data } = await api.put("/admin/settings", formData);
-      if (data?.settings) {
-        queryClient.setQueryData(["settings"], data.settings);
-      }
-      refetchSettings();
-    } catch (err) {
-      setHomeProductsError(
-        getApiErrorMessage(err, "Failed to update home product highlights."),
-      );
-    } finally {
-      setHomeProductsSaving(false);
     }
   };
 
@@ -3997,58 +3991,160 @@ export default function AdminDashboard() {
                           Home Menu Highlights
                         </p>
                         <p className="text-xs text-cocoa/60">
-                          Choose today&apos;s special and up to 6 popular picks
-                          for the Home page.
+                          Open the Menu picker and choose today&apos;s special
+                          or up to 6 popular picks directly from the live menu.
                         </p>
                       </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={saveHomeProducts}
-                        disabled={homeProductsSaving}
-                      >
-                        {homeProductsSaving ? "Saving..." : "Save Highlights"}
+                      <Button type="button" variant="secondary" asChild>
+                        <Link to="/menu?adminPicker=home-highlights">
+                          Open Menu Picker
+                        </Link>
                       </Button>
                     </div>
 
                     <div className="mt-4 space-y-4 text-sm">
-                      <SelectMenu
-                        label="Today's Special"
-                        value={todaysSpecialId}
-                        onChange={setTodaysSpecialId}
-                        placeholder="Select menu item"
-                        options={products.map((product) => ({
-                          label: product.name,
-                          value: product._id,
-                        }))}
-                      />
+                      <div className="grid gap-3 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+                        <div
+                          className={cn(
+                            dashboardCompactItemClass,
+                            "space-y-3",
+                            isDayTheme
+                              ? "border-[#3f7674]/16 bg-[#f9fdfd]"
+                              : "",
+                          )}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
+                                Today&apos;s Special
+                              </p>
+                              <p className="mt-1 text-xs text-cocoa/60">
+                                The first featured item visitors see on Home.
+                              </p>
+                            </div>
+                            <Badge>Menu-managed</Badge>
+                          </div>
 
-                      <div>
-                        <p className="text-xs font-semibold text-cocoa/70">
-                          Popular Picks ({featuredProductsSelection.length}/6)
-                        </p>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {products.map((product) => (
-                            <Button
-                              key={product._id}
-                              type="button"
-                              size="sm"
-                              variant={
-                                featuredProductsSelection.includes(product._id)
-                                  ? "default"
-                                  : "secondary"
-                              }
-                              onClick={() => toggleFeaturedProduct(product._id)}
+                          {selectedTodaysSpecialProduct ? (
+                            <div
+                              className={cn(
+                                "flex items-center gap-3 rounded-[1.15rem] border p-3",
+                                isDayTheme
+                                  ? "border-[#3f7674]/18 bg-[#eef7f6]"
+                                  : "border-gold/14 bg-obsidian/50",
+                              )}
                             >
-                              {product.name}
-                            </Button>
-                          ))}
+                              {selectedTodaysSpecialProduct.imageUrl ? (
+                                <img
+                                  src={selectedTodaysSpecialProduct.imageUrl}
+                                  alt={selectedTodaysSpecialProduct.name}
+                                  className="h-14 w-14 rounded-xl2 object-cover"
+                                />
+                              ) : (
+                                <div className="h-14 w-14 rounded-xl2 bg-gradient-to-br from-espresso via-caramel to-cream" />
+                              )}
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate font-semibold text-espresso">
+                                  {selectedTodaysSpecialProduct.name}
+                                </p>
+                                <p className="mt-1 text-xs text-cocoa/60">
+                                  {categoryMap.get(
+                                    selectedTodaysSpecialProduct.categoryId,
+                                  ) || "Category"}
+                                </p>
+                                <p className="mt-2 text-xs font-medium text-cocoa/70">
+                                  {formatAdminProductPrice(
+                                    selectedTodaysSpecialProduct,
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div
+                              className={cn(
+                                "rounded-[1.15rem] border border-dashed px-4 py-5 text-xs text-cocoa/60",
+                                isDayTheme
+                                  ? "border-[#3f7674]/18 bg-[#f7fbfb]"
+                                  : "border-gold/18 bg-obsidian/35",
+                              )}
+                            >
+                              No special selected yet. Open the menu picker and
+                              choose one item.
+                            </div>
+                          )}
+                        </div>
+
+                        <div
+                          className={cn(
+                            dashboardCompactItemClass,
+                            "space-y-3",
+                            isDayTheme
+                              ? "border-[#3f7674]/16 bg-[#f9fdfd]"
+                              : "",
+                          )}
+                        >
+                          <div className="flex flex-wrap items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
+                                Popular Picks
+                              </p>
+                              <p className="mt-1 text-xs text-cocoa/60">
+                                Visitors see these up to 6 picks inside the
+                                Home menu grid.
+                              </p>
+                            </div>
+                            <Badge>
+                              {selectedFeaturedProducts.length}/6 selected
+                            </Badge>
+                          </div>
+
+                          {selectedFeaturedProducts.length ? (
+                            <div className="grid gap-2 sm:grid-cols-2">
+                              {selectedFeaturedProducts.map((product) => (
+                                <div
+                                  key={product._id}
+                                  className={cn(
+                                    "flex items-center gap-3 rounded-[1.15rem] border p-3",
+                                    isDayTheme
+                                      ? "border-[#3f7674]/18 bg-[#eef7f6]"
+                                      : "border-gold/14 bg-obsidian/50",
+                                  )}
+                                >
+                                  {product.imageUrl ? (
+                                    <img
+                                      src={product.imageUrl}
+                                      alt={product.name}
+                                      className="h-11 w-11 rounded-xl2 object-cover"
+                                    />
+                                  ) : (
+                                    <div className="h-11 w-11 rounded-xl2 bg-gradient-to-br from-espresso via-caramel to-cream" />
+                                  )}
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate font-medium text-espresso">
+                                      {product.name}
+                                    </p>
+                                    <p className="mt-1 text-[11px] text-cocoa/60">
+                                      {formatAdminProductPrice(product)}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div
+                              className={cn(
+                                "rounded-[1.15rem] border border-dashed px-4 py-5 text-xs text-cocoa/60",
+                                isDayTheme
+                                  ? "border-[#3f7674]/18 bg-[#f7fbfb]"
+                                  : "border-gold/18 bg-obsidian/35",
+                              )}
+                            >
+                              No popular picks selected yet. Choose up to 6
+                              menu items from the picker.
+                            </div>
+                          )}
                         </div>
                       </div>
-
-                      {homeProductsError && (
-                        <p className="form-error">{homeProductsError}</p>
-                      )}
                     </div>
                   </div>
 

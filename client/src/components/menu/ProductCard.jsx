@@ -9,7 +9,12 @@ import {
   isProductLowStock,
 } from "../../utils/inventory";
 
-export default function ProductCard({ product, onAdd, orderEditSession = null }) {
+export default function ProductCard({
+  product,
+  onAdd,
+  orderEditSession = null,
+  customActions = null,
+}) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -91,35 +96,39 @@ export default function ProductCard({ product, onAdd, orderEditSession = null })
             {product.name}
           </h3>
           <p className="text-sm text-cocoa/70">{product.description}</p>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={(event) => {
-              event.stopPropagation();
-              if (orderEditSession?.orderId) {
-                navigate(productPath, { state: navigationState });
-                return;
-              }
-              onAdd(product, {
-                selectedSize: defaultSize,
-                selectedAddOns: [],
-              });
-            }}
-            disabled={!isAuthenticated || !isAvailable}
-            className={`mt-auto w-full ${
-              !isAuthenticated || !isAvailable
-                ? "cursor-not-allowed opacity-50"
-                : ""
-            }`}
-          >
-            {!isAvailable
-              ? getInventoryStatusLabel(product)
-              : isAuthenticated
-                ? orderEditSession?.orderId
-                  ? "Customize for order"
-                  : "Add to cart"
-                : "Sign in to order"}
-          </Button>
+          {customActions ? (
+            <div className="mt-auto flex flex-col gap-2">{customActions}</div>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={(event) => {
+                event.stopPropagation();
+                if (orderEditSession?.orderId) {
+                  navigate(productPath, { state: navigationState });
+                  return;
+                }
+                onAdd(product, {
+                  selectedSize: defaultSize,
+                  selectedAddOns: [],
+                });
+              }}
+              disabled={!isAuthenticated || !isAvailable}
+              className={`mt-auto w-full ${
+                !isAuthenticated || !isAvailable
+                  ? "cursor-not-allowed opacity-50"
+                  : ""
+              }`}
+            >
+              {!isAvailable
+                ? getInventoryStatusLabel(product)
+                : isAuthenticated
+                  ? orderEditSession?.orderId
+                    ? "Customize for order"
+                    : "Add to cart"
+                  : "Sign in to order"}
+            </Button>
+          )}
         </div>
       </div>
     </div>
