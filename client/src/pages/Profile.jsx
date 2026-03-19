@@ -168,6 +168,18 @@ const buildOrderUpdatePayload = (draft) => ({
   specialInstructions: draft.specialInstructions,
 });
 
+const DISMISSED_FEEDBACK_STORAGE_KEY = "dismissedOrderFeedbackIds";
+
+const loadDismissedFeedbackOrderIds = () => {
+  try {
+    const stored = localStorage.getItem(DISMISSED_FEEDBACK_STORAGE_KEY);
+    const parsed = stored ? JSON.parse(stored) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export default function Profile() {
   const { user, login, register, logout, isAuthenticated, refreshProfile } =
     useAuth();
@@ -194,6 +206,9 @@ export default function Profile() {
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
   const [submittingFeedbackOrderId, setSubmittingFeedbackOrderId] = useState("");
   const [feedbackPromptOrderId, setFeedbackPromptOrderId] = useState("");
+  const [dismissedFeedbackOrderIds, setDismissedFeedbackOrderIds] = useState(() =>
+    loadDismissedFeedbackOrderIds(),
+  );
   const handledReturnFlowRef = useRef("");
   const isDayTheme = theme === "day";
   const justPlacedOrderId = location.state?.justPlacedOrderId || "";
@@ -471,6 +486,9 @@ export default function Profile() {
         comment: draft.comment?.trim() || "",
       });
       replaceOrderInState(data.order);
+      setDismissedFeedbackOrderIds((prev) =>
+        prev.filter((entry) => entry !== order._id),
+      );
       setFeedbackDrafts((prev) => ({
         ...prev,
         [order._id]: buildFeedbackDraft(data.order),
@@ -565,6 +583,18 @@ export default function Profile() {
     });
   };
 
+  const dismissFeedbackPanel = (orderId) => {
+    setDismissedFeedbackOrderIds((prev) =>
+      prev.includes(orderId) ? prev : [...prev, orderId],
+    );
+  };
+
+  const reopenFeedbackPanel = (orderId) => {
+    setDismissedFeedbackOrderIds((prev) =>
+      prev.filter((entry) => entry !== orderId),
+    );
+  };
+
   useEffect(() => {
     if (!isAuthenticated) return;
     let cancelled = false;
@@ -592,6 +622,17 @@ export default function Profile() {
       updatedAt: Date.now(),
     });
   }, [editingOrderId, orderDrafts]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        DISMISSED_FEEDBACK_STORAGE_KEY,
+        JSON.stringify(dismissedFeedbackOrderIds),
+      );
+    } catch {
+      // Ignore persistence errors and keep the UI responsive.
+    }
+  }, [dismissedFeedbackOrderIds]);
 
   useEffect(() => {
     if (!isAuthenticated || orders.length === 0) return;
@@ -834,6 +875,9 @@ export default function Profile() {
                   const isEditable = isOrderEditableForCustomer(order.status);
                   const isEditing = editingOrderId === order._id;
                   const canShowFeedback = order.status === "Completed" && order._id === latestOrderId;
+                  const isFeedbackDismissed =
+                    !order.feedback?.rating &&
+                    dismissedFeedbackOrderIds.includes(order._id);
                   const editDraft =
                     orderDrafts[order._id] || buildEditableOrderDraft(order);
                   const feedbackDraft =
@@ -1138,7 +1182,7 @@ export default function Profile() {
                         </div>
                       )}
 
-                      {canShowFeedback && (
+                      {canShowFeedback && !isFeedbackDismissed && (
                         <div className={feedbackPanelClass}>
                           <div className="flex flex-wrap items-center justify-between gap-3">
                             <div>
@@ -1199,6 +1243,15 @@ export default function Profile() {
                                     ? "Update Feedback"
                                     : "Send Feedback"}
                               </Button>
+                              {!order.feedback?.rating && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => dismissFeedbackPanel(order._id)}
+                                >
+                                  Dismiss
+                                </Button>
+                              )}
                               {order.feedback?.rating ? (
                                 <div className="flex items-center gap-2 text-xs text-cocoa/68">
                                   <OrderStars
@@ -1213,6 +1266,25 @@ export default function Profile() {
                               ) : null}
                             </div>
                           </div>
+                        </div>
+                      )}
+                      {canShowFeedback && isFeedbackDismissed && (
+                        <div
+                          className={cn(
+                            "mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[1rem] border px-4 py-3 text-xs",
+                            isDayTheme
+                              ? "border-[#3f7674]/14 bg-[#eef7f6] text-cocoa/76"
+                              : "border-gold/14 bg-[rgba(27,21,18,0.82)] text-cocoa/74",
+                          )}
+                        >
+                          <span>Feedback dismissed for this order.</span>
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => reopenFeedbackPanel(order._id)}
+                          >
+                            Reopen Feedback
+                          </Button>
                         </div>
                       )}
 
