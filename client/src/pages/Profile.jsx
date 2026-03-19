@@ -14,6 +14,8 @@ import { getApiErrorMessage } from "../utils/apiErrors";
 import { ListSkeleton } from "../components/common/PageSkeleton";
 import useTheme from "../hooks/useTheme";
 import { cn } from "../lib/utils";
+import { getUnitPrice, normalizeSizePrices } from "../utils/pricing";
+import { canOrderProduct } from "../utils/inventory";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 const orderDateFilterOptions = ["All Dates", "Today", "Yesterday", "Last 7 Days", "This Month", "This Year"];
@@ -146,21 +148,54 @@ const groupOrdersByDay = (orders) => {
 const isOrderEditableForCustomer = (status) =>
   !["Ready", "Completed", "Cancelled"].includes(status);
 
+const createDraftLineId = () =>
+  globalThis.crypto?.randomUUID?.() ||
+  `draft-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+const buildDraftItemFromProduct = (product, overrides = {}) => {
+  const sizePrices = normalizeSizePrices(product);
+  const selectedSize =
+    overrides.selectedSize ??
+    sizePrices.find((entry) => entry.size === "Regular")?.size ??
+    sizePrices[0]?.size ??
+    "";
+
+  return {
+    id: overrides.id || createDraftLineId(),
+    productId: overrides.productId || product?._id || "",
+    product,
+    name: overrides.name || product?.name || "Item",
+    imageUrl: overrides.imageUrl || product?.imageUrl || "",
+    quantity: Number(overrides.quantity) || 1,
+    selectedSize,
+    selectedAddOns: overrides.selectedAddOns || [],
+    unitPrice:
+      Number(overrides.unitPrice) ||
+      getUnitPrice(product, selectedSize),
+  };
+};
+
 const buildEditableOrderDraft = (order) => ({
   items: (order.items || [])
     .filter((item) => !item.isRewardRedemption)
-    .map((item) => ({
-      id: item._id,
-      productId: item.productId?._id || item.productId,
-      name: item.productId?.name || "Item",
-      imageUrl: item.productId?.imageUrl || "",
-      quantity: Number(item.quantity) || 1,
-      selectedSize: item.selectedSize || "",
-      selectedAddOns: item.selectedAddOns || [],
-      unitPrice: Number(item.unitPrice || 0),
-    })),
+    .map((item) =>
+      buildDraftItemFromProduct(
+        item.productId && typeof item.productId === "object" ? item.productId : null,
+        {
+          id: item._id,
+          productId: item.productId?._id || item.productId,
+          name: item.productId?.name || "Item",
+          imageUrl: item.productId?.imageUrl || "",
+          quantity: Number(item.quantity) || 1,
+          selectedSize: item.selectedSize || "",
+          selectedAddOns: item.selectedAddOns || [],
+          unitPrice: Number(item.unitPrice || 0),
+        },
+      ),
+    ),
   rewardItems: (order.items || []).filter((item) => item.isRewardRedemption),
   specialInstructions: order.specialInstructions || "",
+  pendingProductId: "",
 });
 
 const buildFeedbackDraft = (order) => ({
@@ -182,13 +217,16 @@ export default function Profile() {
     password: "",
   });
   const [orders, setOrders] = useState([]);
+  const [products, setProducts] = useState([]);
   const [error, setError] = useState("");
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [orderDayFilter, setOrderDayFilter] = useState("All Dates");
   const [editingOrderId, setEditingOrderId] = useState("");
   const [orderDrafts, setOrderDrafts] = useState({});
   const [savingOrderId, setSavingOrderId] = useState("");
   const [cancellingOrderId, setCancellingOrderId] = useState("");
+  const [cancelTargetOrderId, setCancelTargetOrderId] = useState("");
   const [feedbackDrafts, setFeedbackDrafts] = useState({});
   const [submittingFeedbackOrderId, setSubmittingFeedbackOrderId] = useState("");
   const isDayTheme = theme === "day";
@@ -247,6 +285,10 @@ export default function Profile() {
     () => groupOrdersByDay(filteredOrders),
     [filteredOrders],
   );
+  const availableProducts = useMemo(
+    () => products.filter((product) => canOrderProduct(product)),
+    [products],
+  );
 
   const replaceOrderInState = useCallback((nextOrder) => {
     setOrders((prev) =>
@@ -299,6 +341,69 @@ export default function Profile() {
     }));
   };
 
+  const updateDraftItemSize = (orderId, itemId, value) => {
+    patchOrderDraft(orderId, (draft) => ({
+      ...draft,
+      items: draft.items.map((item) =>
+        item.id === itemId
+          ? {
+              ...item,
+              selectedSize: value,
+              unitPrice: item.product
+                ? getUnitPrice(item.product, value)
+                : Number(item.unitPrice || 0),
+            }
+          : item,
+      ),
+    }));
+  };
+
+  const toggleDraftItemAddOn = (orderId, itemId, addOn) => {
+    patchOrderDraft(orderId, (draft) => ({
+      ...draft,
+      items: draft.items.map((item) => {
+        if (item.id !== itemId) return item;
+        const exists = item.selectedAddOns.includes(addOn);
+        return {
+          ...item,
+          selectedAddOns: exists
+            ? item.selectedAddOns.filter((entry) => entry !== addOn)
+            : [...item.selectedAddOns, addOn],
+        };
+      }),
+    }));
+  };
+
+  const setPendingDraftProduct = (orderId, value) => {
+    patchOrderDraft(orderId, (draft) => ({
+      ...draft,
+      pendingProductId: value,
+    }));
+  };
+
+  const addPendingProductToDraft = (orderId) => {
+    const draft = orderDrafts[orderId];
+    if (!draft?.pendingProductId) {
+      setError("Pick a menu item first, then add it to the order.");
+      return;
+    }
+
+    const product = availableProducts.find(
+      (entry) => String(entry._id) === String(draft.pendingProductId),
+    );
+
+    if (!product) {
+      setError("That product is not available to add right now.");
+      return;
+    }
+
+    patchOrderDraft(orderId, (currentDraft) => ({
+      ...currentDraft,
+      items: [...currentDraft.items, buildDraftItemFromProduct(product)],
+      pendingProductId: "",
+    }));
+  };
+
   const handleSaveEditedOrder = async (orderId) => {
     const draft = orderDrafts[orderId];
     if (!draft) return;
@@ -335,8 +440,6 @@ export default function Profile() {
   };
 
   const handleCancelOrder = async (orderId) => {
-    if (!window.confirm("Cancel this order now?")) return;
-
     setCancellingOrderId(orderId);
     setError("");
 
@@ -350,6 +453,7 @@ export default function Profile() {
         ),
       );
       stopEditingOrder(orderId);
+      setCancelTargetOrderId("");
     } catch (err) {
       setError(getApiErrorMessage(err, "We couldn't cancel that order right now."));
     } finally {
@@ -468,6 +572,19 @@ export default function Profile() {
       });
   }, []);
 
+  const loadProducts = useCallback(() => {
+    setLoadingProducts(true);
+    api
+      .get("/products")
+      .then((response) => {
+        setProducts(response.data.products || []);
+      })
+      .catch(() => {})
+      .finally(() => {
+        setLoadingProducts(false);
+      });
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) return;
     let cancelled = false;
@@ -475,13 +592,14 @@ export default function Profile() {
     Promise.resolve().then(() => {
       if (cancelled) return;
       loadOrders();
+      loadProducts();
       refreshProfile?.();
     });
 
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, loadOrders, refreshProfile]);
+  }, [isAuthenticated, loadOrders, loadProducts, refreshProfile]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -752,7 +870,7 @@ export default function Profile() {
                               size="sm"
                               variant="outline"
                               disabled={cancellingOrderId === order._id}
-                              onClick={() => handleCancelOrder(order._id)}
+                              onClick={() => setCancelTargetOrderId(order._id)}
                             >
                               {cancellingOrderId === order._id
                                 ? "Cancelling..."
@@ -842,6 +960,51 @@ export default function Profile() {
                                     </Button>
                                   </div>
                                 </div>
+                                {normalizeSizePrices(item.product).length > 0 && (
+                                  <div className="mt-3">
+                                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
+                                      Size
+                                    </p>
+                                    <SelectMenu
+                                      value={item.selectedSize}
+                                      onChange={(value) =>
+                                        updateDraftItemSize(order._id, item.id, value)
+                                      }
+                                      className="w-full sm:w-[16rem]"
+                                      menuClassName="w-full sm:w-[16rem]"
+                                      options={normalizeSizePrices(item.product).map((entry) => ({
+                                        label: `${entry.size} - ${entry.price.toFixed(2)} JD`,
+                                        value: entry.size,
+                                      }))}
+                                    />
+                                  </div>
+                                )}
+                                {item.product?.addOns?.length > 0 && (
+                                  <div className="mt-3">
+                                    <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
+                                      Add-ons
+                                    </p>
+                                    <div className="flex flex-wrap gap-2">
+                                      {item.product.addOns.map((addOn) => (
+                                        <Button
+                                          key={`${item.id}-${addOn}`}
+                                          type="button"
+                                          size="sm"
+                                          variant={
+                                            item.selectedAddOns.includes(addOn)
+                                              ? "default"
+                                              : "secondary"
+                                          }
+                                          onClick={() =>
+                                            toggleDraftItemAddOn(order._id, item.id, addOn)
+                                          }
+                                        >
+                                          {addOn}
+                                        </Button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             ))}
 
@@ -858,6 +1021,53 @@ export default function Profile() {
                                 stay free during editing.
                               </div>
                             )}
+
+                            <div
+                              className={cn(
+                                "rounded-[1rem] border px-3 py-3",
+                                isDayTheme
+                                  ? "border-[#3f7674]/14 bg-[#fbfdfd]"
+                                  : "border-gold/14 bg-[rgba(21,16,14,0.84)]",
+                              )}
+                            >
+                              <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                  <p className="text-sm font-semibold text-espresso">
+                                    Add Another Item
+                                  </p>
+                                  <p className="mt-1 text-xs text-cocoa/65">
+                                    We can add extra products to this order before it
+                                    becomes ready.
+                                  </p>
+                                </div>
+                                {loadingProducts && (
+                                  <Badge variant="highlight">Loading menu...</Badge>
+                                )}
+                              </div>
+                              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center">
+                                <SelectMenu
+                                  value={editDraft.pendingProductId}
+                                  onChange={(value) =>
+                                    setPendingDraftProduct(order._id, value)
+                                  }
+                                  className="w-full"
+                                  menuClassName="w-full"
+                                  placeholder="Choose a menu item"
+                                  options={availableProducts.map((product) => ({
+                                    label: product.name,
+                                    value: product._id,
+                                  }))}
+                                />
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  onClick={() => addPendingProductToDraft(order._id)}
+                                  disabled={loadingProducts || availableProducts.length === 0}
+                                >
+                                  Add To Order
+                                </Button>
+                              </div>
+                            </div>
 
                             <div>
                               <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
@@ -991,6 +1201,42 @@ export default function Profile() {
           </p>
         )}
       </div>
+
+      {cancelTargetOrderId && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-[#120d0b]/80 px-4 backdrop-blur-sm"
+          onClick={() => setCancelTargetOrderId("")}
+        >
+          <div
+            className="w-full max-w-md rounded-xl3 border border-gold/20 bg-[#17110f] p-6 text-cream shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 className="text-xl font-semibold text-cream">Cancel this order?</h2>
+            <p className="mt-3 text-sm leading-7 text-cocoa/80">
+              We will mark the order as cancelled and release any reserved stock
+              back into inventory.
+            </p>
+            <div className="mt-5 flex flex-wrap justify-end gap-3">
+              <Button
+                variant="outline"
+                type="button"
+                onClick={() => setCancelTargetOrderId("")}
+              >
+                Keep Order
+              </Button>
+              <Button
+                type="button"
+                disabled={cancellingOrderId === cancelTargetOrderId}
+                onClick={() => handleCancelOrder(cancelTargetOrderId)}
+              >
+                {cancellingOrderId === cancelTargetOrderId
+                  ? "Cancelling..."
+                  : "Yes, Cancel It"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
