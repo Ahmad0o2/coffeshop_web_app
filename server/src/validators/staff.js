@@ -33,6 +33,7 @@ export const staffUpdateSchema = z.object({
   fullName: z.string().min(2).optional(),
   email: optionalEmailSchema,
   phone: z.string().optional(),
+  password: z.string().min(4).optional(),
   role: z.enum(['Staff', 'Admin']).optional(),
   permissions: permissionsSchema,
 })

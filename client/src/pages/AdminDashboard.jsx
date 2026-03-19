@@ -1816,7 +1816,7 @@ export default function AdminDashboard() {
       if (staffForm.phone.trim()) {
         payload.phone = staffForm.phone.trim();
       }
-      if (!staffForm.id && staffForm.password) {
+      if (staffForm.password) {
         payload.password = staffForm.password;
       }
       if (staffForm.id) {
@@ -4615,10 +4615,14 @@ export default function AdminDashboard() {
                       }))
                     }
                   />
-                  {!staffForm.id && (
+                  <div className="space-y-2">
                     <Input
                       type="password"
-                      placeholder="Temporary password"
+                      placeholder={
+                        staffForm.id
+                          ? "Set a new password (optional)"
+                          : "Temporary password"
+                      }
                       value={staffForm.password}
                       onChange={(e) =>
                         setStaffForm((prev) => ({
@@ -4627,7 +4631,13 @@ export default function AdminDashboard() {
                         }))
                       }
                     />
-                  )}
+                    {staffForm.id && (
+                      <p className="text-xs text-cocoa/60">
+                        Leave this empty if you don&apos;t want to change the
+                        current password.
+                      </p>
+                    )}
+                  </div>
                   <SelectMenu
                     value={staffForm.role}
                     onChange={(value) =>

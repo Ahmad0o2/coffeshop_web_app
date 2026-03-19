@@ -6,7 +6,6 @@ import useAuth from '../hooks/useAuth'
 import api from '../services/api'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { getUnitPrice } from '../utils/pricing'
 
@@ -26,14 +25,8 @@ export default function Checkout() {
   const { isAuthenticated } = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [paymentMethod, setPaymentMethod] = useState('Cash')
+  const paymentMethod = 'Cash'
   const [notes, setNotes] = useState('')
-  const [cardDetails, setCardDetails] = useState({
-    name: '',
-    number: '',
-    expiry: '',
-    cvc: '',
-  })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -97,17 +90,6 @@ export default function Checkout() {
     setLoading(true)
     setError('')
     try {
-      if (
-        paymentMethod === 'Card' &&
-        (!cardDetails.name ||
-          !cardDetails.number ||
-          !cardDetails.expiry ||
-          !cardDetails.cvc)
-      ) {
-        setError('Please fill in card details.')
-        setLoading(false)
-        return
-      }
       const payload = {
         items: items.map((item) => ({
           productId: item.product._id,
@@ -148,7 +130,8 @@ export default function Checkout() {
       <div className="card p-8">
         <h1 className="text-3xl font-semibold text-espresso">Checkout</h1>
         <p className="mt-2 text-sm text-cocoa/70">
-          Confirm your order and choose your payment method.
+          Confirm your order. Cash payment is available right now while the
+          online gateway is still offline.
         </p>
       </div>
 
@@ -162,25 +145,20 @@ export default function Checkout() {
         <div className="card p-6">
           <h2 className="text-lg font-semibold text-espresso">Payment</h2>
           <div className="mt-4 space-y-4 text-sm">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3">
               <label className="flex items-center gap-2 rounded-xl2 border border-gold/20 bg-obsidian/50 px-3 py-3 text-xs">
                 <input
                   type="radio"
-                  checked={paymentMethod === 'Cash'}
-                  onChange={() => setPaymentMethod('Cash')}
+                  checked
+                  readOnly
                   className="accent-gold"
                 />
                 Pay with cash at pickup
               </label>
-              <label className="flex items-center gap-2 rounded-xl2 border border-gold/20 bg-obsidian/50 px-3 py-3 text-xs">
-                <input
-                  type="radio"
-                  checked={paymentMethod === 'Card'}
-                  onChange={() => setPaymentMethod('Card')}
-                  className="accent-gold"
-                />
-                Pay with card
-              </label>
+              <div className="rounded-xl2 border border-gold/15 bg-obsidian/35 px-4 py-3 text-xs text-cocoa/68">
+                Online card payment is temporarily disabled until a payment
+                gateway is connected.
+              </div>
             </div>
 
             <div>
@@ -193,49 +171,6 @@ export default function Checkout() {
                 className="mt-2"
               />
             </div>
-
-            {paymentMethod === 'Card' && (
-              <Card className="bg-obsidian/60">
-                <CardHeader>
-                  <CardTitle>Card Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <Input
-                    placeholder="Name on card"
-                    value={cardDetails.name}
-                    onChange={(e) =>
-                      setCardDetails((prev) => ({ ...prev, name: e.target.value }))
-                    }
-                  />
-                  <Input
-                    placeholder="Card number"
-                    value={cardDetails.number}
-                    onChange={(e) =>
-                      setCardDetails((prev) => ({ ...prev, number: e.target.value }))
-                    }
-                  />
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Input
-                      placeholder="MM/YY"
-                      value={cardDetails.expiry}
-                      onChange={(e) =>
-                        setCardDetails((prev) => ({
-                          ...prev,
-                          expiry: e.target.value,
-                        }))
-                      }
-                    />
-                    <Input
-                      placeholder="CVC"
-                      value={cardDetails.cvc}
-                      onChange={(e) =>
-                        setCardDetails((prev) => ({ ...prev, cvc: e.target.value }))
-                      }
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
             {error && <p className="form-error">{error}</p>}
 

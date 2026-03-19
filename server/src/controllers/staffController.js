@@ -122,6 +122,11 @@ export const updateStaff = asyncHandler(async (req, res) => {
     staff.permissions = payload.permissions
   }
 
+  if (payload.password) {
+    const salt = await bcrypt.genSalt(10)
+    staff.passwordHash = await bcrypt.hash(payload.password, salt)
+  }
+
   await staff.save()
   emitRealtimeEvent(req, 'staff:changed', {
     action: 'updated',

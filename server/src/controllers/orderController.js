@@ -118,6 +118,21 @@ const buildInventoryError = (product, requestedQuantity) => {
   return error
 }
 
+const normalizePaymentMethod = (paymentMethod = 'Cash') => {
+  const normalizedMethod = String(paymentMethod || 'Cash').trim() || 'Cash'
+
+  if (normalizedMethod === 'Cash') {
+    return 'Cash'
+  }
+
+  const error = new Error(
+    'Electronic payment is temporarily unavailable. Please choose cash at pickup.'
+  )
+  error.statusCode = 400
+  error.code = 'PAYMENT_METHOD_UNAVAILABLE'
+  throw error
+}
+
 const reserveInventoryForItems = async (items = []) => {
   const demand = buildInventoryDemand(items)
   const reserved = []
@@ -231,6 +246,7 @@ const buildRegularOrderItems = async (items = []) => {
 
 export const createOrder = asyncHandler(async (req, res) => {
   const payload = createOrderSchema.parse(req.body)
+  const paymentMethod = normalizePaymentMethod(payload.paymentMethod || 'Cash')
   const rewardRedemptionIds = [...new Set(payload.rewardRedemptionIds || [])]
   const regularItems = await buildRegularOrderItems(payload.items)
 
@@ -291,7 +307,7 @@ export const createOrder = asyncHandler(async (req, res) => {
     order = await Order.create({
       userId: req.user._id,
       tableId: payload.tableId || null,
-      paymentMethod: payload.paymentMethod || 'Cash',
+      paymentMethod,
       scheduledPickupTime: payload.scheduledPickupTime
         ? new Date(payload.scheduledPickupTime)
         : null,
@@ -433,7 +449,7 @@ export const updateOrder = asyncHandler(async (req, res) => {
     )
 
     if (typeof payload.paymentMethod === 'string' && payload.paymentMethod.trim()) {
-      order.paymentMethod = payload.paymentMethod
+      order.paymentMethod = normalizePaymentMethod(payload.paymentMethod)
     }
 
     if (Object.prototype.hasOwnProperty.call(payload, 'specialInstructions')) {
