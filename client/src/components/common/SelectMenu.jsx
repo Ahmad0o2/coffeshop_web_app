@@ -15,6 +15,7 @@ export default function SelectMenu({
   renderValue,
   renderOption,
   menuPlacement = "bottom",
+  openSpaceClassName,
 }) {
   const [open, setOpen] = useState(false);
   const wrapperRef = useRef(null);
@@ -87,6 +88,12 @@ export default function SelectMenu({
           ))}
         </div>
       )}
+      {open && openSpaceClassName ? (
+        <div
+          aria-hidden="true"
+          className={cn("pointer-events-none", openSpaceClassName)}
+        />
+      ) : null}
     </div>
   );
 }

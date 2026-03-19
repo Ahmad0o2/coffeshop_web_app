@@ -2512,7 +2512,7 @@ export default function AdminDashboard() {
                     <div className="space-y-3">
                       {group.entries.map((order) => (
                         <div key={order._id} className={orderCardClass}>
-                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                             <div>
                               <p className="text-xs font-medium text-cocoa/68">
                                 Order #{order._id}
@@ -2551,6 +2551,7 @@ export default function AdminDashboard() {
                                 disabled={Boolean(updatingOrderIds[order._id])}
                                 className="w-full"
                                 menuClassName="w-full"
+                                openSpaceClassName="h-56"
                                 options={statusOptions.map((status) => ({
                                   label: status,
                                   value: status,
