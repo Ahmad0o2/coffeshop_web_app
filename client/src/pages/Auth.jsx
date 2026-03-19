@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate, useLocation, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 import useTheme from "../hooks/useTheme";
@@ -27,8 +27,6 @@ export default function Auth() {
   const { user, login, register, isAuthenticated } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const location = useLocation();
-  const redirectTo = location.state?.redirectTo;
   const [mode, setMode] = useState("login");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -73,7 +71,7 @@ export default function Auth() {
         to={
           ["Admin", "Staff"].includes(user?.role)
             ? "/admin"
-            : redirectTo || "/orders"
+            : "/"
         }
         replace
       />
@@ -151,7 +149,7 @@ export default function Auth() {
       navigate(
         ["Admin", "Staff"].includes(data?.user?.role)
           ? "/admin"
-          : redirectTo || "/",
+          : "/",
         { replace: true },
       );
     } catch (err) {
