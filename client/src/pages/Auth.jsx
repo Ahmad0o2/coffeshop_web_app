@@ -283,13 +283,6 @@ export default function Auth() {
           >
             Register
           </button>
-          <button
-            type="button"
-            className={`pill ${mode === "reset" ? "border-espresso/40" : ""}`}
-            onClick={() => switchMode("reset")}
-          >
-            Reset Password
-          </button>
         </div>
 
         <div className="mt-6">
