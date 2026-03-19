@@ -73,6 +73,60 @@ const formatOrderDateTime = (value) => {
   }).format(date);
 };
 
+const getLocalDateKey = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "unknown";
+  return date.toLocaleDateString("en-CA");
+};
+
+const formatOrderDayLabel = (value) => {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown Day";
+
+  const today = new Date();
+  const todayKey = getLocalDateKey(today);
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const yesterdayKey = getLocalDateKey(yesterday);
+  const currentKey = getLocalDateKey(date);
+
+  if (currentKey === todayKey) return "Today";
+  if (currentKey === yesterdayKey) return "Yesterday";
+
+  return date.toLocaleDateString("en-GB", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+};
+
+const groupOrdersByDay = (orders) => {
+  const sortedOrders = [...orders].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+  const grouped = new Map();
+
+  sortedOrders.forEach((order) => {
+    const dateKey = getLocalDateKey(order.createdAt);
+
+    if (!grouped.has(dateKey)) {
+      grouped.set(dateKey, {
+        dateKey,
+        labelSource: order.createdAt,
+        entries: [],
+        totalAmount: 0,
+      });
+    }
+
+    const group = grouped.get(dateKey);
+    group.entries.push(order);
+    group.totalAmount += Number(order.totalAmount || 0);
+  });
+
+  return Array.from(grouped.values());
+};
+
 export default function Profile() {
   const { user, login, register, logout, isAuthenticated, refreshProfile } =
     useAuth();
@@ -108,6 +162,12 @@ export default function Profile() {
       ? "border-[#3f7674]/16 bg-[#f3f9f8]"
       : "border-gold/16 bg-[rgba(30,23,20,0.92)]",
   );
+  const orderGroupClass = cn(
+    "rounded-[1.2rem] border p-4 transition-colors",
+    isDayTheme
+      ? "border-[#3f7674]/14 bg-[#f8fcfc] shadow-[0_8px_20px_rgba(34,71,70,0.04)]"
+      : "border-gold/14 bg-[rgba(23,17,15,0.94)] shadow-[0_18px_34px_rgba(10,7,6,0.16)]",
+  );
   const orderNotesClass = cn(
     "mt-3 rounded-[1rem] border px-3 py-2.5 text-xs transition-colors",
     isDayTheme
@@ -118,6 +178,10 @@ export default function Profile() {
   const filteredOrders = useMemo(
     () => orders.filter((order) => matchesOrderDateFilter(order.createdAt, orderDayFilter)),
     [orders, orderDayFilter],
+  );
+  const groupedOrders = useMemo(
+    () => groupOrdersByDay(filteredOrders),
+    [filteredOrders],
   );
 
   const validateForm = () => {
@@ -333,84 +397,108 @@ export default function Profile() {
         {loadingOrders && orders.length === 0 ? (
           <ListSkeleton items={3} />
         ) : (
-          filteredOrders.map((order) => (
-            <div
-              key={order._id}
-              className={orderCardClass}
-            >
+          groupedOrders.map((group) => (
+            <div key={group.dateKey} className={orderGroupClass}>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-medium text-cocoa/68">Order #{order._id}</p>
-                  <p className="mt-1 text-sm text-cocoa/76">
-                    Payment: {order.paymentMethod || "Cash"}
-                  </p>
-                  <p className="mt-1 text-xs text-cocoa/66">
-                    Placed: {formatOrderDateTime(order.createdAt)}
+                  <h2 className="text-lg font-semibold text-espresso">
+                    {formatOrderDayLabel(group.labelSource)}
+                  </h2>
+                  <p className="mt-1 text-xs text-cocoa/60">
+                    {group.entries.length} order
+                    {group.entries.length > 1 ? "s" : ""} in this group
                   </p>
                 </div>
-                <Badge>{order.status}</Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge>{group.entries.length} orders</Badge>
+                  <Badge variant="highlight">
+                    {group.totalAmount.toFixed(2)} JD total
+                  </Badge>
+                </div>
               </div>
-              <div className="mt-3">
-                <OrderStatus status={order.status} />
-              </div>
-              <div className="mt-3 space-y-2">
-                {(order.items || []).map((item) => (
+
+              <div className="mt-4 space-y-3">
+                {group.entries.map((order) => (
                   <div
-                    key={item._id}
-                    className={orderLineItemClass}
+                    key={order._id}
+                    className={orderCardClass}
                   >
-                    <div className="flex items-center gap-3">
-                      {item.productId?.imageUrl ? (
-                        <img
-                          src={item.productId.imageUrl}
-                          alt={item.productId?.name || "Item"}
-                          className="h-12 w-12 rounded-xl2 object-cover"
-                        />
-                      ) : (
-                        <div className="h-12 w-12 rounded-xl2 bg-gradient-to-br from-obsidian via-caramel to-gold" />
-                      )}
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <p className="text-sm font-semibold text-espresso">
-                            {item.productId?.name || "Item"}
-                          </p>
-                          {item.isRewardRedemption && (
-                            <span className="pill">Redeemed</span>
-                          )}
-                        </div>
-                        <p className="text-xs text-cocoa/72">
-                          {item.quantity}x {item.selectedSize || "Regular"} -{" "}
-                          {item.isRewardRedemption
-                            ? "Free reward item"
-                            : `${(item.unitPrice || 0).toFixed(2)} JD`}
+                        <p className="text-xs font-medium text-cocoa/68">Order #{order._id}</p>
+                        <p className="mt-1 text-sm text-cocoa/76">
+                          Payment: {order.paymentMethod || "Cash"}
                         </p>
-                        {item.selectedAddOns?.length > 0 && (
-                          <p className="text-xs text-cocoa/72">
-                            Add-ons: {item.selectedAddOns.join(", ")}
-                          </p>
-                        )}
+                        <p className="mt-1 text-xs text-cocoa/66">
+                          Placed: {formatOrderDateTime(order.createdAt)}
+                        </p>
                       </div>
+                      <Badge>{order.status}</Badge>
                     </div>
-                    <p className="text-xs font-medium text-cocoa/72">
-                      {item.isRewardRedemption
-                        ? "Free"
-                        : `${(item.lineTotal || 0).toFixed(2)} JD`}
+                    <div className="mt-3">
+                      <OrderStatus status={order.status} />
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {(order.items || []).map((item) => (
+                        <div
+                          key={item._id}
+                          className={orderLineItemClass}
+                        >
+                          <div className="flex items-center gap-3">
+                            {item.productId?.imageUrl ? (
+                              <img
+                                src={item.productId.imageUrl}
+                                alt={item.productId?.name || "Item"}
+                                className="h-12 w-12 rounded-xl2 object-cover"
+                              />
+                            ) : (
+                              <div className="h-12 w-12 rounded-xl2 bg-gradient-to-br from-obsidian via-caramel to-gold" />
+                            )}
+                            <div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-espresso">
+                                  {item.productId?.name || "Item"}
+                                </p>
+                                {item.isRewardRedemption && (
+                                  <span className="pill">Redeemed</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-cocoa/72">
+                                {item.quantity}x {item.selectedSize || "Regular"} -{" "}
+                                {item.isRewardRedemption
+                                  ? "Free reward item"
+                                  : `${(item.unitPrice || 0).toFixed(2)} JD`}
+                              </p>
+                              {item.selectedAddOns?.length > 0 && (
+                                <p className="text-xs text-cocoa/72">
+                                  Add-ons: {item.selectedAddOns.join(", ")}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-xs font-medium text-cocoa/72">
+                            {item.isRewardRedemption
+                              ? "Free"
+                              : `${(item.lineTotal || 0).toFixed(2)} JD`}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                    {order.specialInstructions && (
+                      <div className={orderNotesClass}>
+                        Notes: {order.specialInstructions}
+                      </div>
+                    )}
+                    <p className="mt-3 text-sm font-medium text-cocoa/78">
+                      Total: {order.totalAmount?.toFixed(2)} JD
                     </p>
                   </div>
                 ))}
               </div>
-              {order.specialInstructions && (
-                <div className={orderNotesClass}>
-                  Notes: {order.specialInstructions}
-                </div>
-              )}
-              <p className="mt-3 text-sm font-medium text-cocoa/78">
-                Total: {order.totalAmount?.toFixed(2)} JD
-              </p>
             </div>
           ))
         )}
-        {!loadingOrders && filteredOrders.length === 0 && (
+        {!loadingOrders && groupedOrders.length === 0 && (
           <p className="text-sm text-cocoa/60">
             {orders.length === 0 ? "No orders yet." : "No orders match this date filter."}
           </p>
