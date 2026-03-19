@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 
 const authOtpSchema = new mongoose.Schema(
   {
-    phone: { type: String, required: true, index: true },
+    email: { type: String, required: true, lowercase: true, trim: true, index: true },
     purpose: {
       type: String,
       enum: ['register', 'reset-password'],
@@ -18,7 +18,7 @@ const authOtpSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-authOtpSchema.index({ phone: 1, purpose: 1, consumedAt: 1 })
+authOtpSchema.index({ email: 1, purpose: 1, consumedAt: 1 })
 
 authOtpSchema.statics.hashCode = function hashCode(code) {
   return crypto.createHash('sha256').update(String(code)).digest('hex')

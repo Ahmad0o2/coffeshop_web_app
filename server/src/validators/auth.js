@@ -37,14 +37,13 @@ const requiredOtpCodeSchema = z.preprocess((value) => {
 export const registerSchema = z
   .object({
     fullName: z.string().min(2),
-    email: optionalEmailSchema,
+    email: z.preprocess((value) => {
+      if (typeof value !== 'string') return value
+      return value.trim()
+    }, z.string().email()),
     phone: requiredPhoneSchema,
     password: z.string().min(6),
     otpCode: otpCodeSchema,
-  })
-  .refine((data) => data.email || data.phone, {
-    message: 'Email or phone is required',
-    path: ['email'],
   })
   .refine((data) => data.otpCode, {
     message: 'OTP code is required',
@@ -65,12 +64,18 @@ export const loginSchema = z
   })
 
 export const requestOtpSchema = z.object({
-  phone: requiredPhoneSchema,
+  email: z.preprocess((value) => {
+    if (typeof value !== 'string') return value
+    return value.trim()
+  }, z.string().email()),
   purpose: z.enum(['register', 'reset-password']),
 })
 
 export const resetPasswordSchema = z.object({
-  phone: requiredPhoneSchema,
+  email: z.preprocess((value) => {
+    if (typeof value !== 'string') return value
+    return value.trim()
+  }, z.string().email()),
   otpCode: requiredOtpCodeSchema,
   newPassword: z.string().min(6),
 })

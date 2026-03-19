@@ -2,6 +2,7 @@ import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import AuthOtp from '../models/AuthOtp.js'
 import User from '../models/User.js'
+import { sendBrevoTransactionalEmail } from '../services/brevoEmail.js'
 import asyncHandler from '../utils/asyncHandler.js'
 import { generateToken } from '../utils/token.js'
 import {
@@ -31,37 +32,77 @@ const normalizePhone = (value) =>
 
 const OTP_EXPIRY_MINUTES = 10
 const MAX_OTP_ATTEMPTS = 5
-const otpMode = process.env.AUTH_OTP_MODE || 'demo'
 
 const createOtpCode = () => String(crypto.randomInt(100000, 1000000))
 
 const createOtpMessage = (purpose) =>
   purpose === 'register'
-    ? 'Verification code created for phone sign-up.'
-    : 'Password reset code created for this phone number.'
+    ? 'Verification code created for email sign-up.'
+    : 'Password reset code created for this email address.'
 
-const sendOtp = async ({ phone, purpose, code }) => {
-  if (otpMode === 'demo') {
-    console.log(`[OTP:${purpose}] ${phone} -> ${code}`)
-    return {
-      deliveryMode: 'demo',
-      demoCode: code,
-    }
-  }
-
-  console.log(
-    `[OTP:${purpose}] AUTH_OTP_MODE="${otpMode}" is not configured with a provider. Falling back to demo mode for ${phone}.`
-  )
+const createOtpEmailContent = ({ code, purpose }) => {
+  const heading =
+    purpose === 'register' ? 'Confirm your email address' : 'Reset your password'
+  const intro =
+    purpose === 'register'
+      ? 'Use this one-time code to finish creating your Cortina.D account.'
+      : 'Use this one-time code to reset your Cortina.D password.'
 
   return {
-    deliveryMode: 'demo',
-    demoCode: code,
+    subject:
+      purpose === 'register'
+        ? 'Your Cortina.D sign-up code'
+        : 'Your Cortina.D password reset code',
+    htmlContent: `
+      <div style="font-family: Arial, sans-serif; padding: 24px; color: #1b1715;">
+        <h2 style="margin: 0 0 12px;">${heading}</h2>
+        <p style="margin: 0 0 16px; line-height: 1.7;">${intro}</p>
+        <div style="display: inline-block; padding: 12px 18px; border-radius: 12px; background: #f2dd9b; font-size: 24px; font-weight: 700; letter-spacing: 0.24em;">
+          ${code}
+        </div>
+        <p style="margin: 16px 0 0; line-height: 1.7;">
+          This code expires in ${OTP_EXPIRY_MINUTES} minutes.
+        </p>
+      </div>
+    `,
+    textContent: `${heading}\n\n${intro}\n\nCode: ${code}\n\nThis code expires in ${OTP_EXPIRY_MINUTES} minutes.`,
   }
 }
 
-const consumeOtp = async ({ phone, purpose, otpCode }) => {
+const sendOtp = async ({ email, purpose, code }) => {
+  const content = createOtpEmailContent({ code, purpose })
+
+  try {
+    const result = await sendBrevoTransactionalEmail({
+      to: email,
+      subject: content.subject,
+      htmlContent: content.htmlContent,
+      textContent: content.textContent,
+    })
+
+    if (result.delivered) {
+      return {
+        deliveryMode: 'email',
+      }
+    }
+  } catch (error) {
+    console.error(
+      `[OTP:${purpose}] Brevo delivery failed for ${email}. Falling back to demo mode.`,
+      error?.details || error?.message || error
+    )
+  }
+
+  console.log(`[OTP:${purpose}] ${email} -> ${code}`)
+  return {
+    deliveryMode: 'demo',
+    demoCode: code,
+    note: 'Brevo is not fully configured yet. Showing the code in demo mode.',
+  }
+}
+
+const consumeOtp = async ({ email, purpose, otpCode }) => {
   const record = await AuthOtp.findOne({
-    phone,
+    email,
     purpose,
     consumedAt: null,
   }).sort({ createdAt: -1 })
@@ -108,50 +149,51 @@ const consumeOtp = async ({ phone, purpose, otpCode }) => {
 
 export const requestOtp = asyncHandler(async (req, res) => {
   const payload = requestOtpSchema.parse(req.body)
-  const phone = normalizePhone(payload.phone)
+  const email = normalizeEmail(payload.email)
   const purpose = payload.purpose
 
   if (purpose === 'register') {
-    const existingUser = await User.findOne({ phone }).select('_id')
+    const existingUser = await User.findOne({ email }).select('_id')
     if (existingUser) {
       return res.status(409).json({
         code: 'CONFLICT',
-        message: 'Phone is already in use.',
-        fields: ['phone'],
+        message: 'Email is already in use.',
+        fields: ['email'],
       })
     }
   }
 
   if (purpose === 'reset-password') {
-    const existingUser = await User.findOne({ phone }).select('_id')
+    const existingUser = await User.findOne({ email }).select('_id')
     if (!existingUser) {
       return res.status(404).json({
         code: 'NOT_FOUND',
-        message: 'We could not find an account with that phone number.',
-        fields: ['phone'],
+        message: 'We could not find an account with that email address.',
+        fields: ['email'],
       })
     }
   }
 
-  await AuthOtp.deleteMany({ phone, purpose, consumedAt: null })
+  await AuthOtp.deleteMany({ email, purpose, consumedAt: null })
 
   const code = createOtpCode()
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000)
 
   await AuthOtp.create({
-    phone,
+    email,
     purpose,
     codeHash: AuthOtp.hashCode(code),
     expiresAt,
   })
 
-  const delivery = await sendOtp({ phone, purpose, code })
+  const delivery = await sendOtp({ email, purpose, code })
 
   res.json({
     message: createOtpMessage(purpose),
     expiresInSeconds: OTP_EXPIRY_MINUTES * 60,
     deliveryMode: delivery.deliveryMode,
     demoCode: delivery.demoCode,
+    note: delivery.note,
   })
 })
 
@@ -192,7 +234,7 @@ export const register = asyncHandler(async (req, res) => {
     })
   }
 
-  const otpResult = await consumeOtp({ phone, purpose: 'register', otpCode })
+  const otpResult = await consumeOtp({ email, purpose: 'register', otpCode })
   if (!otpResult.ok) {
     return res.status(otpResult.status).json({
       code: 'OTP_INVALID',
@@ -282,21 +324,21 @@ export const getProfile = asyncHandler(async (req, res) => {
 
 export const resetPassword = asyncHandler(async (req, res) => {
   const payload = resetPasswordSchema.parse(req.body)
-  const phone = normalizePhone(payload.phone)
+  const email = normalizeEmail(payload.email)
   const otpCode = payload.otpCode
   const newPassword = payload.newPassword
 
-  const user = await User.findOne({ phone })
+  const user = await User.findOne({ email })
   if (!user) {
     return res.status(404).json({
       code: 'NOT_FOUND',
-      message: 'We could not find an account with that phone number.',
-      fields: ['phone'],
+      message: 'We could not find an account with that email address.',
+      fields: ['email'],
     })
   }
 
   const otpResult = await consumeOtp({
-    phone,
+    email,
     purpose: 'reset-password',
     otpCode,
   })

@@ -15,11 +15,11 @@ const authModes = {
   },
   register: {
     title: "Create Account",
-    subtitle: "Create your account, verify your phone number, and get started.",
+    subtitle: "Create your account, verify your email, and get started.",
   },
   reset: {
     title: "Reset Password",
-    subtitle: "Verify your phone number, then choose a new password.",
+    subtitle: "Verify your email, then choose a new password.",
   },
 };
 
@@ -47,7 +47,7 @@ export default function Auth() {
     otpCode: "",
   });
   const [resetForm, setResetForm] = useState({
-    phone: "",
+    email: "",
     otpCode: "",
     newPassword: "",
     confirmPassword: "",
@@ -88,13 +88,13 @@ export default function Auth() {
   };
 
   const requestOtp = async (purpose) => {
-    const phone =
+    const email =
       purpose === "register"
-        ? registerForm.phone.trim()
-        : resetForm.phone.trim();
+        ? registerForm.email.trim()
+        : resetForm.email.trim();
 
-    if (!phone) {
-      setError("Enter your phone number first.");
+    if (!email) {
+      setError("Enter your email first.");
       return;
     }
 
@@ -104,19 +104,20 @@ export default function Auth() {
     setOtpNotice(null);
 
     try {
-      const { data } = await api.post("/auth/otp/request", { phone, purpose });
+      const { data } = await api.post("/auth/otp/request", { email, purpose });
       setOtpNotice({
         purpose,
         mode: purpose === "reset-password" ? "reset" : purpose,
-        phone,
+        email,
         message: data?.message || "Verification code sent.",
         demoCode: data?.demoCode || "",
         deliveryMode: data?.deliveryMode || "demo",
+        note: data?.note || "",
       });
       setNotice(
         data?.deliveryMode === "demo"
-          ? "Free demo OTP mode is active. The code is shown below instead of SMS."
-          : "Verification code sent to the provided phone number.",
+          ? "Brevo fallback mode is active right now, so the code is shown inside the app."
+          : "Verification code sent to the provided email address.",
       );
     } catch (err) {
       setError(getApiErrorMessage(err, "We couldn't send the OTP right now."));
@@ -216,8 +217,8 @@ export default function Auth() {
     setNotice("");
 
     try {
-      if (!resetForm.phone.trim()) {
-        setError("Phone is required.");
+      if (!resetForm.email.trim()) {
+        setError("Email is required.");
         return;
       }
       if (!resetForm.otpCode.trim()) {
@@ -234,7 +235,7 @@ export default function Auth() {
       }
 
       const { data } = await api.post("/auth/password-reset", {
-        phone: resetForm.phone.trim(),
+        email: resetForm.email.trim(),
         otpCode: resetForm.otpCode.trim(),
         newPassword: resetForm.newPassword,
       });
@@ -244,11 +245,11 @@ export default function Auth() {
           "Password reset successful. Sign in with the new password now.",
       );
       setLoginForm({
-        identifier: resetForm.phone.trim(),
+        identifier: resetForm.email.trim(),
         password: "",
       });
       setResetForm({
-        phone: "",
+        email: "",
         otpCode: "",
         newPassword: "",
         confirmPassword: "",
@@ -308,16 +309,19 @@ export default function Auth() {
             <p className="font-semibold text-espresso">{otpNotice.message}</p>
             <p className="text-xs uppercase tracking-[0.18em] text-cocoa/60">
               {otpNotice.deliveryMode === "demo"
-                ? "Free Demo OTP"
-                : "Phone Verification"}
+                ? "Brevo Demo Fallback"
+                : "Email Verification"}
             </p>
             {otpNotice.demoCode && (
               <p className="text-lg font-semibold tracking-[0.2em] text-espresso">
                 {otpNotice.demoCode}
               </p>
             )}
+            {otpNotice.note && (
+              <p className="text-xs text-cocoa/65">{otpNotice.note}</p>
+            )}
             <p className="text-xs text-cocoa/65">
-              Phone: {otpNotice.phone}
+              Email: {otpNotice.email}
             </p>
           </div>
         )}
@@ -387,13 +391,13 @@ export default function Auth() {
             />
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <Input
-                type="text"
-                placeholder="Phone"
-                value={registerForm.phone}
+                type="email"
+                placeholder="Email"
+                value={registerForm.email}
                 onChange={(event) =>
                   setRegisterForm((prev) => ({
                     ...prev,
-                    phone: event.target.value,
+                    email: event.target.value,
                   }))
                 }
               />
@@ -407,6 +411,17 @@ export default function Auth() {
                 {sendingOtpFor === "register" ? "Sending..." : "Send OTP"}
               </Button>
             </div>
+            <Input
+              type="text"
+              placeholder="Phone"
+              value={registerForm.phone}
+              onChange={(event) =>
+                setRegisterForm((prev) => ({
+                  ...prev,
+                  phone: event.target.value,
+                }))
+              }
+            />
             <Input
               type="text"
               inputMode="numeric"
@@ -446,13 +461,13 @@ export default function Auth() {
           >
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <Input
-                type="text"
-                placeholder="Phone"
-                value={resetForm.phone}
+                type="email"
+                placeholder="Email"
+                value={resetForm.email}
                 onChange={(event) =>
                   setResetForm((prev) => ({
                     ...prev,
-                    phone: event.target.value,
+                    email: event.target.value,
                   }))
                 }
               />
