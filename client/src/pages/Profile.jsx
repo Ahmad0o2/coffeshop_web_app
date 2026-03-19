@@ -158,6 +158,16 @@ const buildFeedbackDraft = (order) => ({
   comment: order.feedback?.comment || "",
 });
 
+const buildOrderUpdatePayload = (draft) => ({
+  items: draft.items.map((item) => ({
+    productId: item.productId,
+    quantity: Number(item.quantity),
+    selectedSize: item.selectedSize,
+    selectedAddOns: item.selectedAddOns,
+  })),
+  specialInstructions: draft.specialInstructions,
+});
+
 export default function Profile() {
   const { user, login, register, logout, isAuthenticated, refreshProfile } =
     useAuth();
@@ -356,15 +366,24 @@ export default function Profile() {
     setError("");
 
     try {
-      const { data } = await api.patch(`/orders/${orderId}`, {
-        items: draft.items.map((item) => ({
-          productId: item.productId,
-          quantity: Number(item.quantity),
-          selectedSize: item.selectedSize,
-          selectedAddOns: item.selectedAddOns,
-        })),
-        specialInstructions: draft.specialInstructions,
-      });
+      const payload = buildOrderUpdatePayload(draft);
+      let data;
+
+      try {
+        ({ data } = await api.patch(`/orders/${orderId}`, payload));
+      } catch (err) {
+        const errorMessage = getApiErrorMessage(err, "");
+        const shouldRetryWithPost =
+          err?.response?.status === 404 ||
+          errorMessage.toLowerCase().includes("route not found");
+
+        if (!shouldRetryWithPost) {
+          throw err;
+        }
+
+        ({ data } = await api.post(`/orders/${orderId}/update`, payload));
+      }
+
       replaceOrderInState(data.order);
       setOrderEditNotice(null);
       stopEditingOrder(orderId);
