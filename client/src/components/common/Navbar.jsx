@@ -520,6 +520,34 @@ export default function Navbar() {
                           </span>
                         </NavLink>
                       </div>
+
+                      <div className="space-y-2 pt-2">
+                        <p className={adminMenuSectionTitleClass}>Account</p>
+                        <NavLink
+                          to="/orders"
+                          className={({ isActive }) =>
+                            adminDrawerItemClass({ isActive })
+                          }
+                          onClick={handleCloseMenu}
+                        >
+                          <span>Orders</span>
+                          <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
+                            &gt;
+                          </span>
+                        </NavLink>
+                        <NavLink
+                          to="/cart"
+                          className={({ isActive }) =>
+                            adminDrawerItemClass({ isActive })
+                          }
+                          onClick={handleCloseMenu}
+                        >
+                          <span>Cart</span>
+                          <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
+                            &gt;
+                          </span>
+                        </NavLink>
+                      </div>
                     </>
                   ) : (
                     <>

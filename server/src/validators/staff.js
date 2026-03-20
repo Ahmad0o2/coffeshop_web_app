@@ -24,7 +24,7 @@ export const staffCreateSchema = z.object({
   email: requiredEmailSchema,
   fullName: z.string().min(2).optional(),
   phone: z.string().optional(),
-  password: z.string().min(4).optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters.').optional(),
   role: z.enum(['Staff', 'Admin']).optional(),
   permissions: permissionsSchema,
 })
@@ -33,7 +33,7 @@ export const staffUpdateSchema = z.object({
   fullName: z.string().min(2).optional(),
   email: optionalEmailSchema,
   phone: z.string().optional(),
-  password: z.string().min(4).optional(),
+  password: z.string().min(6, 'Password must be at least 6 characters.').optional(),
   role: z.enum(['Staff', 'Admin']).optional(),
   permissions: permissionsSchema,
 })

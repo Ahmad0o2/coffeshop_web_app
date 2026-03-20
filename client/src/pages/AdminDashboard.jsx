@@ -1805,6 +1805,11 @@ export default function AdminDashboard() {
         setStaffSaving(false);
         return;
       }
+      if (staffForm.password && staffForm.password.trim().length < 6) {
+        setStaffError("Password must be at least 6 characters.");
+        setStaffSaving(false);
+        return;
+      }
       const payload = {
         email: staffForm.email.trim(),
         role: staffForm.role,
@@ -4631,12 +4636,11 @@ export default function AdminDashboard() {
                         }))
                       }
                     />
-                    {staffForm.id && (
-                      <p className="text-xs text-cocoa/60">
-                        Leave this empty if you don&apos;t want to change the
-                        current password.
-                      </p>
-                    )}
+                    <p className="text-xs text-cocoa/60">
+                      {staffForm.id
+                        ? "Leave this empty if you don't want to change the current password. Minimum 6 characters if you do."
+                        : "Use at least 6 characters for the temporary password."}
+                    </p>
                   </div>
                   <SelectMenu
                     value={staffForm.role}
@@ -4706,21 +4710,23 @@ export default function AdminDashboard() {
                 <div className="mt-4 space-y-3 text-sm">
                   {staffList.map((member) => (
                     <div key={member.id} className={dashboardItemClass}>
-                      <div className="flex flex-wrap items-center justify-between gap-4">
-                        <div>
-                          <p className="text-sm font-semibold text-espresso">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0 flex-1">
+                          <p className="break-words text-sm font-semibold text-espresso">
                             {member.fullName || "Staff member"}
                           </p>
-                          <p className="text-xs text-cocoa/60">
+                          <p className="break-all text-xs text-cocoa/60">
                             {member.email}
                           </p>
                           {member.phone && (
-                            <p className="text-xs text-cocoa/60">
+                            <p className="break-all text-xs text-cocoa/60">
                               {member.phone}
                             </p>
                           )}
                         </div>
-                        <Badge>{member.role}</Badge>
+                        <div className="shrink-0">
+                          <Badge>{member.role}</Badge>
+                        </div>
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {(member.permissions || []).length === 0 &&
