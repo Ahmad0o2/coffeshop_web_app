@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import useCart from '../hooks/useCart'
 import useAuth from '../hooks/useAuth'
-import api from '../services/api'
+import api, { resolveImageUrl } from '../services/api'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Badge } from '../components/ui/badge'
@@ -198,7 +198,7 @@ export default function Checkout() {
                   <div className="flex items-center gap-3">
                     {item.product.imageUrl ? (
                       <img
-                        src={item.product.imageUrl}
+                        src={resolveImageUrl(item.product.imageUrl)}
                         alt={item.product.name}
                         className="h-12 w-12 rounded-xl2 object-cover"
                       />
@@ -235,7 +235,7 @@ export default function Checkout() {
                   <div className="flex items-center gap-3">
                     {entry.rewardId?.imageUrl ? (
                       <img
-                        src={entry.rewardId.imageUrl}
+                        src={resolveImageUrl(entry.rewardId.imageUrl)}
                         alt={entry.rewardId?.title || 'Reward'}
                         className="h-12 w-12 rounded-xl2 object-cover"
                       />

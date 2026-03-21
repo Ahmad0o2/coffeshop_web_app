@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Helmet } from 'react-helmet-async'
-import api from '../services/api'
+import api, { resolveImageUrl } from '../services/api'
 import useCart from '../hooks/useCart'
 import useAuth from '../hooks/useAuth'
 import useTheme from '../hooks/useTheme'
@@ -89,17 +89,7 @@ export default function ProductDetail() {
   const isDayTheme = theme === 'day'
   const siteOrigin =
     typeof window !== 'undefined' ? window.location.origin : ''
-  const productImageUrl = product.imageUrl
-    ? product.imageUrl.startsWith('data:')
-      ? siteOrigin
-        ? `${siteOrigin}/api/v1/products/${product._id}/image`
-        : product.imageUrl
-      : product.imageUrl.startsWith('http')
-      ? product.imageUrl
-      : siteOrigin
-      ? new URL(product.imageUrl, siteOrigin).toString()
-      : product.imageUrl
-    : ''
+  const productImageUrl = resolveImageUrl(product.imageUrl)
   const productMetaDescription =
     product.description || `Discover ${product.name} at Cortina.D Coffee House.`
   const productSchema = {
@@ -244,7 +234,7 @@ export default function ProductDetail() {
       <div className="card p-8">
         {product.imageUrl ? (
           <img
-            src={product.imageUrl}
+            src={resolveImageUrl(product.imageUrl)}
             alt={product.name}
             className="mt-4 h-96 w-full rounded-xl2 object-cover sm:h-[28rem]"
           />

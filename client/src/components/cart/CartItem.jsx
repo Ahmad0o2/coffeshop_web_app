@@ -2,6 +2,7 @@ import SelectMenu from "../common/SelectMenu";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
 import { getUnitPrice, normalizeSizePrices } from "../../utils/pricing";
+import { resolveImageUrl } from "../../services/api";
 import {
   canOrderProduct,
   getInventoryQuantity,
@@ -35,7 +36,7 @@ export default function CartItem({
         <div className="flex items-center gap-4">
           {item.product.imageUrl ? (
             <img
-              src={item.product.imageUrl}
+              src={resolveImageUrl(item.product.imageUrl)}
               alt={item.product.name}
               className="h-16 w-16 rounded-xl2 object-cover"
             />

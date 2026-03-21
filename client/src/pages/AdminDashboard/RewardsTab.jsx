@@ -6,6 +6,7 @@ import { Badge } from "../../components/ui/badge";
 import SelectMenu from "../../components/common/SelectMenu";
 import { getApiErrorMessage } from "../../utils/apiErrors";
 import { DashboardSectionHeading } from "./components.jsx";
+import { resolveImageUrl } from "../../services/api";
 
 const createEmptyRewardForm = () => ({
   id: "",
@@ -136,7 +137,7 @@ export default function RewardsTab({
               renderValue={(option) => (
                 <span className="flex items-center gap-3">
                   {option.imageUrl ? (
-                    <img src={option.imageUrl} alt={option.label} className="h-8 w-8 rounded-lg object-cover" />
+                    <img src={resolveImageUrl(option.imageUrl)} alt={option.label} className="h-8 w-8 rounded-lg object-cover" />
                   ) : (
                     <span className="h-8 w-8 rounded-lg bg-gradient-to-br from-espresso via-caramel to-cream" />
                   )}
@@ -146,7 +147,7 @@ export default function RewardsTab({
               renderOption={(option) => (
                 <span className="flex items-center gap-3">
                   {option.imageUrl ? (
-                    <img src={option.imageUrl} alt={option.label} className="h-10 w-10 rounded-lg object-cover" />
+                    <img src={resolveImageUrl(option.imageUrl)} alt={option.label} className="h-10 w-10 rounded-lg object-cover" />
                   ) : (
                     <span className="h-10 w-10 rounded-lg bg-gradient-to-br from-espresso via-caramel to-cream" />
                   )}
@@ -167,7 +168,7 @@ export default function RewardsTab({
               <div className="flex items-center gap-3">
                 {selectedRewardProduct.imageUrl ? (
                   <img
-                    src={selectedRewardProduct.imageUrl}
+                    src={resolveImageUrl(selectedRewardProduct.imageUrl)}
                     alt={selectedRewardProduct.name}
                     className="h-16 w-16 rounded-xl2 object-cover"
                   />
@@ -244,7 +245,7 @@ export default function RewardsTab({
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="flex min-w-0 items-start gap-3">
                   {reward.imageUrl ? (
-                    <img src={reward.imageUrl} alt={reward.title} className="h-14 w-14 rounded-xl2 object-cover" />
+                    <img src={resolveImageUrl(reward.imageUrl)} alt={reward.title} className="h-14 w-14 rounded-xl2 object-cover" />
                   ) : (
                     <div className="h-14 w-14 rounded-xl2 bg-gradient-to-br from-espresso via-caramel to-cream" />
                   )}

@@ -1,6 +1,7 @@
 import { Badge } from "../ui/badge";
 import { Button } from "../ui/button";
 import { Card, CardFooter, CardHeader, CardTitle } from "../ui/card";
+import { resolveImageUrl } from "../../services/api";
 
 export default function RewardCard({
   reward,
@@ -18,7 +19,7 @@ export default function RewardCard({
       {reward.imageUrl ? (
         <div className="h-44 overflow-hidden rounded-t-xl3">
           <img
-            src={reward.imageUrl}
+            src={resolveImageUrl(reward.imageUrl)}
             alt={reward.title}
             className="h-full w-full object-cover"
           />

@@ -2,6 +2,8 @@ import SiteSettings from '../models/SiteSettings.js'
 import asyncHandler from '../utils/asyncHandler.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
 
+const API_BASE_URL = (process.env.API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '')
+
 const getOrCreateSettings = async () => {
   let settings = await SiteSettings.findOne()
   if (!settings) {
@@ -11,7 +13,9 @@ const getOrCreateSettings = async () => {
 }
 
 const buildImageUrl = (path, image) =>
-  image?.data && image?.contentType ? `/api/v1/settings/image/${path}` : ''
+  image?.data && image?.contentType
+    ? `${API_BASE_URL}/api/v1/settings/image/${path}`
+    : ''
 
 const sendImageResponse = (res, image) => {
   if (!image?.data || !image?.contentType) {

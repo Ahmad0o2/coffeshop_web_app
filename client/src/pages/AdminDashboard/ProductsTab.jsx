@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import api from "../../services/api";
+import api, { resolveImageUrl } from "../../services/api";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Textarea } from "../../components/ui/textarea";
@@ -112,7 +112,7 @@ export default function ProductsTab({
       lowStockThreshold: String(product.lowStockThreshold ?? 5),
     });
     setImageFile(null);
-    setImagePreview(product.imageUrl || "");
+    setImagePreview(resolveImageUrl(product.imageUrl || ""));
     setAddOnDraft("");
   };
 
@@ -413,7 +413,7 @@ export default function ProductsTab({
             <div className="mt-4 grid gap-3 sm:grid-cols-[120px_1fr]">
               {imagePreview || form.imageUrl ? (
                 <img
-                  src={imagePreview || form.imageUrl}
+                  src={resolveImageUrl(imagePreview || form.imageUrl)}
                   alt="Preview"
                   className="h-24 w-24 rounded-xl2 object-cover"
                 />
@@ -604,7 +604,7 @@ export default function ProductsTab({
                 <div className="flex items-center gap-3">
                   {product.imageUrl ? (
                     <img
-                      src={product.imageUrl}
+                      src={resolveImageUrl(product.imageUrl)}
                       alt={product.name}
                       className="h-12 w-12 rounded-xl2 object-cover"
                     />

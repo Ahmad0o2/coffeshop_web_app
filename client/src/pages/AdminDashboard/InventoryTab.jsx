@@ -20,6 +20,7 @@ import {
   normalizeInventoryDraft,
 } from "./shared.js";
 import { DashboardSectionHeading, DashboardStatCard } from "./components.jsx";
+import { resolveImageUrl } from "../../services/api";
 
 export default function InventoryTab({
   products,
@@ -371,7 +372,7 @@ export default function InventoryTab({
                   <div className="flex min-w-0 items-center gap-3">
                     {product.imageUrl ? (
                       <img
-                        src={product.imageUrl}
+                        src={resolveImageUrl(product.imageUrl)}
                         alt={product.name}
                         className="h-14 w-14 rounded-xl2 object-cover"
                       />

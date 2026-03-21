@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../hooks/useAuth";
-import api from "../services/api";
+import api, { resolveImageUrl } from "../services/api";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Textarea } from "../components/ui/textarea";
@@ -819,7 +819,7 @@ export default function Profile() {
                             <div className="flex items-center gap-3">
                               {item.productId?.imageUrl ? (
                                 <img
-                                  src={item.productId.imageUrl}
+                                  src={resolveImageUrl(item.productId.imageUrl)}
                                   alt={item.productId?.name || "Item"}
                                   className="h-12 w-12 rounded-xl2 object-cover"
                                 />
@@ -929,7 +929,7 @@ export default function Profile() {
                                   <div className="flex items-center gap-3">
                                     {item.imageUrl ? (
                                       <img
-                                        src={item.imageUrl}
+                                        src={resolveImageUrl(item.imageUrl)}
                                         alt={item.name}
                                         className="h-11 w-11 rounded-xl2 object-cover"
                                       />

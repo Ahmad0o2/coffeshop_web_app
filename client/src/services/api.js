@@ -6,6 +6,18 @@ import {
 } from "./authStorage";
 
 const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
+const apiOrigin = baseURL.replace(/\/api\/v1\/?$/, "");
+
+export const resolveImageUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) {
+    return url;
+  }
+  if (url.startsWith("/api")) {
+    return `${apiOrigin}${url}`;
+  }
+  return url;
+};
 
 const api = axios.create({
   baseURL,

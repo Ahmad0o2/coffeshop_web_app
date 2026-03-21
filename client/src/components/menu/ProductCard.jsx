@@ -2,6 +2,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import useAuth from "../../hooks/useAuth";
 import { Button } from "../ui/button";
 import { getDisplayPrice, normalizeSizePrices } from "../../utils/pricing";
+import { resolveImageUrl } from "../../services/api";
 import {
   canOrderProduct,
   getInventoryQuantity,
@@ -62,7 +63,7 @@ export default function ProductCard({
         <div className="relative h-44 overflow-hidden bg-obsidian">
           {product.imageUrl ? (
             <img
-              src={product.imageUrl}
+              src={resolveImageUrl(product.imageUrl)}
               alt={product.name}
               className="absolute inset-0 block h-full w-full object-cover transition duration-500 will-change-transform transform-gpu scale-[1.02] group-hover:scale-105"
             />

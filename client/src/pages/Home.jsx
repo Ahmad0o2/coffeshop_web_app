@@ -14,7 +14,7 @@ import {
   PageHeroSkeleton,
   PulseLogoLoader,
 } from "../components/common/PageSkeleton";
-import api from "../services/api";
+import api, { resolveImageUrl } from "../services/api";
 import { getDisplayPrice } from "../utils/pricing";
 
 const fetchEvents = async () => {
@@ -420,7 +420,7 @@ export default function Home() {
                     <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[1.4rem] border border-gold/20 bg-obsidian/25 shadow-card">
                       {todaysSpecial?.imageUrl ? (
                         <img
-                          src={todaysSpecial.imageUrl}
+                          src={resolveImageUrl(todaysSpecial.imageUrl)}
                           alt={todaysSpecial.name}
                           className="h-full w-full object-cover"
                         />
@@ -525,7 +525,7 @@ export default function Home() {
                 <div className="relative h-52 overflow-hidden">
                   {item.imageUrl ? (
                     <img
-                      src={item.imageUrl}
+                      src={resolveImageUrl(item.imageUrl)}
                       alt={item.name}
                       className="h-full w-full object-cover transition duration-500 hover:scale-105"
                     />

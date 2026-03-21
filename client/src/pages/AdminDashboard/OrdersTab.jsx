@@ -15,6 +15,7 @@ import {
   statusOptions,
 } from "./shared.js";
 import { DashboardSectionHeading } from "./components.jsx";
+import { resolveImageUrl } from "../../services/api";
 
 export default function OrdersTab({
   orders,
@@ -290,7 +291,7 @@ export default function OrdersTab({
                           <div className="flex items-center gap-3">
                             {item.productId?.imageUrl ? (
                               <img
-                                src={item.productId.imageUrl}
+                                src={resolveImageUrl(item.productId.imageUrl)}
                                 alt={item.productId?.name || "Item"}
                                 className="h-12 w-12 rounded-xl2 object-cover"
                               />

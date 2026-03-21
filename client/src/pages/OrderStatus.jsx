@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import api from "../services/api";
+import api, { resolveImageUrl } from "../services/api";
 import OrderStatus from "../components/order/OrderStatus";
 import { DetailSkeleton } from "../components/common/PageSkeleton";
 import useAuth from "../hooks/useAuth";
@@ -113,7 +113,7 @@ export default function OrderStatusPage() {
               <div className="flex items-center gap-3">
                 {item.productId?.imageUrl ? (
                   <img
-                    src={item.productId.imageUrl}
+                    src={resolveImageUrl(item.productId.imageUrl)}
                     alt={item.productId?.name || "Item"}
                     className="h-12 w-12 rounded-xl2 object-cover"
                   />

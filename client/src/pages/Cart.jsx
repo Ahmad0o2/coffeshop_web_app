@@ -8,7 +8,7 @@ import useAuth from '../hooks/useAuth'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import api from '../services/api'
+import api, { resolveImageUrl } from '../services/api'
 
 const fetchRewardHistory = async () => {
   const { data } = await api.get('/rewards/history')
@@ -153,7 +153,7 @@ export default function Cart() {
                       <div className="flex min-w-0 items-center gap-3">
                         {entry.rewardId?.imageUrl ? (
                           <img
-                            src={entry.rewardId.imageUrl}
+                            src={resolveImageUrl(entry.rewardId.imageUrl)}
                             alt={entry.rewardId?.title || 'Reward'}
                             className="h-12 w-12 rounded-xl2 object-cover"
                           />

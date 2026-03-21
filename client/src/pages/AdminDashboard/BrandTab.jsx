@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
-import api from "../../services/api";
+import api, { resolveImageUrl } from "../../services/api";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
 import { cn } from "../../lib/utils";
@@ -260,7 +260,7 @@ export default function BrandTab({
               <div key={`${image}-${index}`} className={dashboardCompactItemClass}>
                 <div className="grid gap-4 sm:grid-cols-[140px_1fr]">
                   <div className="h-24 overflow-hidden rounded-xl2 border border-gold/10">
-                    <img src={image} alt={`Gallery page ${index + 1}`} className="h-full w-full object-cover" />
+                    <img src={resolveImageUrl(image)} alt={`Gallery page ${index + 1}`} className="h-full w-full object-cover" />
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <label className="upload-button">
@@ -308,7 +308,7 @@ export default function BrandTab({
                 }`}
               >
                 {image ? (
-                  <img src={image} alt="Gallery preview" className="h-full w-full object-cover" />
+                  <img src={resolveImageUrl(image)} alt="Gallery preview" className="h-full w-full object-cover" />
                 ) : null}
               </div>
             ))}
@@ -352,7 +352,7 @@ export default function BrandTab({
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-4">
               {logoDisplay ? (
-                <img src={logoDisplay} alt="Logo preview" className="h-16 w-16 rounded-full object-cover" />
+                <img src={resolveImageUrl(logoDisplay)} alt="Logo preview" className="h-16 w-16 rounded-full object-cover" />
               ) : (
                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-obsidian/60 text-xs text-cocoa/60">
                   No logo
@@ -396,7 +396,7 @@ export default function BrandTab({
             </div>
             <div className="mt-4 flex flex-wrap items-center gap-4">
               {heroDisplay ? (
-                <img src={heroDisplay} alt="Hero preview" className="h-20 w-full max-w-xs rounded-xl2 object-cover" />
+                <img src={resolveImageUrl(heroDisplay)} alt="Hero preview" className="h-20 w-full max-w-xs rounded-xl2 object-cover" />
               ) : (
                 <div className="flex h-20 w-full max-w-xs items-center justify-center rounded-xl2 bg-obsidian/60 text-xs text-cocoa/60">
                   No hero image
@@ -445,7 +445,7 @@ export default function BrandTab({
               {homeDisplayGallery.map((image, index) => (
                 <div key={`${image}-${index}`} className="rounded-xl2 border border-gold/20 bg-obsidian/60 p-2">
                   <div className="h-20 overflow-hidden rounded-xl2">
-                    <img src={image} alt={`Home display ${index + 1}`} className="h-full w-full object-cover" />
+                    <img src={resolveImageUrl(image)} alt={`Home display ${index + 1}`} className="h-full w-full object-cover" />
                   </div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     <label className="upload-button">
@@ -531,7 +531,7 @@ export default function BrandTab({
                     >
                       {selectedTodaysSpecialProduct.imageUrl ? (
                         <img
-                          src={selectedTodaysSpecialProduct.imageUrl}
+                          src={resolveImageUrl(selectedTodaysSpecialProduct.imageUrl)}
                           alt={selectedTodaysSpecialProduct.name}
                           className="h-14 w-14 rounded-xl2 object-cover"
                         />
@@ -590,7 +590,7 @@ export default function BrandTab({
                           )}
                         >
                           {product.imageUrl ? (
-                            <img src={product.imageUrl} alt={product.name} className="h-11 w-11 rounded-xl2 object-cover" />
+                            <img src={resolveImageUrl(product.imageUrl)} alt={product.name} className="h-11 w-11 rounded-xl2 object-cover" />
                           ) : (
                             <div className="h-11 w-11 rounded-xl2 bg-gradient-to-br from-espresso via-caramel to-cream" />
                           )}
@@ -642,7 +642,7 @@ export default function BrandTab({
             <p className="text-xs uppercase text-cocoa/60">Logo</p>
             <div className="mt-3 flex items-center gap-3">
               {logoDisplay ? (
-                <img src={logoDisplay} alt="Logo" className="h-12 w-12 rounded-full object-cover" />
+                <img src={resolveImageUrl(logoDisplay)} alt="Logo" className="h-12 w-12 rounded-full object-cover" />
               ) : (
                 <div className="h-12 w-12 rounded-full bg-obsidian/80" />
               )}

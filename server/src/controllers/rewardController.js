@@ -7,10 +7,13 @@ import { buildPaginatedResponse, parsePagination } from '../utils/pagination.js'
 import { redeemSchema, rewardSchema } from '../validators/reward.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
 
+const API_BASE_URL = (process.env.API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '')
+
 const buildProductImageUrl = (product) => {
-  if (product?.image?.data || product?.image?.contentType) {
-    return product?._id ? `/api/v1/products/${String(product._id)}/image` : ''
+  if (product?._id && (product?.image?.data || product?.image?.contentType)) {
+    return `${API_BASE_URL}/api/v1/products/${String(product._id)}/image`
   }
+
   return product?.imageUrl || ''
 }
 
