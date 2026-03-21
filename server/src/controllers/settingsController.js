@@ -2,25 +2,39 @@ import SiteSettings from '../models/SiteSettings.js'
 import asyncHandler from '../utils/asyncHandler.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
 
-const buildImageUrl = (image) => {
-  if (image?.data && image?.contentType) {
-    return `data:${image.contentType};base64,${image.data}`
+const getOrCreateSettings = async () => {
+  let settings = await SiteSettings.findOne()
+  if (!settings) {
+    settings = await SiteSettings.create({})
   }
-  return ''
+  return settings
+}
+
+const buildImageUrl = (path, image) =>
+  image?.data && image?.contentType ? `/api/v1/settings/image/${path}` : ''
+
+const sendImageResponse = (res, image) => {
+  if (!image?.data || !image?.contentType) {
+    return res.status(404).json({ code: 'NOT_FOUND' })
+  }
+
+  res.set('Cache-Control', 'public, max-age=300')
+  res.contentType(image.contentType)
+  res.send(Buffer.from(image.data, 'base64'))
 }
 
 const mapSettings = (settings) => ({
   id: settings._id,
-  logoUrl: buildImageUrl(settings.logo),
-  heroImageUrl: buildImageUrl(settings.heroImage),
-  spaceGalleryUrls: (settings.spaceGalleryImages || []).map((image) =>
-    buildImageUrl(image)
+  logoUrl: buildImageUrl('logo', settings.logo),
+  heroImageUrl: buildImageUrl('hero', settings.heroImage),
+  spaceGalleryUrls: (settings.spaceGalleryImages || []).map((image, index) =>
+    buildImageUrl(`space-gallery/${index}`, image)
   ),
-  homeDisplayUrls: (settings.homeDisplayImages || []).map((image) =>
-    buildImageUrl(image)
+  homeDisplayUrls: (settings.homeDisplayImages || []).map((image, index) =>
+    buildImageUrl(`home-display/${index}`, image)
   ),
-  galleryUrls: (settings.galleryImages || []).map((image) =>
-    buildImageUrl(image)
+  galleryUrls: (settings.galleryImages || []).map((image, index) =>
+    buildImageUrl(`gallery/${index}`, image)
   ),
   featuredEventIds: settings.featuredEventIds || [],
   todaysSpecialProductId: settings.todaysSpecialProductId || '',
@@ -43,18 +57,40 @@ const parseList = (value) => {
 }
 
 export const getSettings = asyncHandler(async (req, res) => {
-  let settings = await SiteSettings.findOne()
-  if (!settings) {
-    settings = await SiteSettings.create({})
-  }
+  const settings = await getOrCreateSettings()
   res.json({ settings: mapSettings(settings) })
 })
 
+export const getLogoImage = asyncHandler(async (_req, res) => {
+  const settings = await SiteSettings.findOne().select('logo')
+  return sendImageResponse(res, settings?.logo)
+})
+
+export const getHeroImage = asyncHandler(async (_req, res) => {
+  const settings = await SiteSettings.findOne().select('heroImage')
+  return sendImageResponse(res, settings?.heroImage)
+})
+
+export const getGalleryImage = asyncHandler(async (req, res) => {
+  const index = Number(req.params.index)
+  const settings = await SiteSettings.findOne().select('galleryImages')
+  return sendImageResponse(res, settings?.galleryImages?.[index])
+})
+
+export const getHomeDisplayImage = asyncHandler(async (req, res) => {
+  const index = Number(req.params.index)
+  const settings = await SiteSettings.findOne().select('homeDisplayImages')
+  return sendImageResponse(res, settings?.homeDisplayImages?.[index])
+})
+
+export const getSpaceGalleryImage = asyncHandler(async (req, res) => {
+  const index = Number(req.params.index)
+  const settings = await SiteSettings.findOne().select('spaceGalleryImages')
+  return sendImageResponse(res, settings?.spaceGalleryImages?.[index])
+})
+
 export const updateSettings = asyncHandler(async (req, res) => {
-  let settings = await SiteSettings.findOne()
-  if (!settings) {
-    settings = await SiteSettings.create({})
-  }
+  const settings = await getOrCreateSettings()
 
   const permissions = req.user?.permissions || []
   const canManageBrand =
@@ -184,10 +220,7 @@ export const updateGalleryImage = asyncHandler(async (req, res) => {
     return res.status(400).json({ code: 'INVALID', message: 'Image required' })
   }
 
-  let settings = await SiteSettings.findOne()
-  if (!settings) {
-    settings = await SiteSettings.create({})
-  }
+  const settings = await getOrCreateSettings()
 
   const images = settings.galleryImages || []
   const image = {
@@ -218,10 +251,7 @@ export const updateSpaceGalleryImage = asyncHandler(async (req, res) => {
     return res.status(400).json({ code: 'INVALID', message: 'Image required' })
   }
 
-  let settings = await SiteSettings.findOne()
-  if (!settings) {
-    settings = await SiteSettings.create({})
-  }
+  const settings = await getOrCreateSettings()
 
   const images = settings.spaceGalleryImages || []
   const image = {
@@ -252,10 +282,7 @@ export const updateHomeDisplayImage = asyncHandler(async (req, res) => {
     return res.status(400).json({ code: 'INVALID', message: 'Image required' })
   }
 
-  let settings = await SiteSettings.findOne()
-  if (!settings) {
-    settings = await SiteSettings.create({})
-  }
+  const settings = await getOrCreateSettings()
 
   const images = settings.homeDisplayImages || []
   const image = {
@@ -283,10 +310,7 @@ export const deleteGalleryImage = asyncHandler(async (req, res) => {
     return res.status(400).json({ code: 'INVALID', message: 'Invalid index' })
   }
 
-  let settings = await SiteSettings.findOne()
-  if (!settings) {
-    settings = await SiteSettings.create({})
-  }
+  const settings = await getOrCreateSettings()
 
   const images = settings.galleryImages || []
   if (index >= images.length) {
@@ -308,10 +332,7 @@ export const deleteSpaceGalleryImage = asyncHandler(async (req, res) => {
     return res.status(400).json({ code: 'INVALID', message: 'Invalid index' })
   }
 
-  let settings = await SiteSettings.findOne()
-  if (!settings) {
-    settings = await SiteSettings.create({})
-  }
+  const settings = await getOrCreateSettings()
 
   const images = settings.spaceGalleryImages || []
   if (index >= images.length) {
@@ -333,10 +354,7 @@ export const deleteHomeDisplayImage = asyncHandler(async (req, res) => {
     return res.status(400).json({ code: 'INVALID', message: 'Invalid index' })
   }
 
-  let settings = await SiteSettings.findOne()
-  if (!settings) {
-    settings = await SiteSettings.create({})
-  }
+  const settings = await getOrCreateSettings()
 
   const images = settings.homeDisplayImages || []
   if (index >= images.length) {

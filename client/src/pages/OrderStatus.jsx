@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { io } from "socket.io-client";
 import api from "../services/api";
 import OrderStatus from "../components/order/OrderStatus";
 import { DetailSkeleton } from "../components/common/PageSkeleton";
 import useAuth from "../hooks/useAuth";
 import useTheme from "../hooks/useTheme";
-import { buildSocketConnectionOptions } from "../utils/socketAuth";
+import { connectSocket } from "../services/socketClient";
 import { cn } from "../lib/utils";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
@@ -70,15 +69,20 @@ export default function OrderStatusPage() {
   useEffect(() => {
     if (!user?.id) return undefined;
 
-    const socket = io(socketUrl, buildSocketConnectionOptions(user));
-    socket.on("order:status", (payload) => {
+    const socket = connectSocket(socketUrl, {
+      auth: { userId: String(user.id), role: user.role },
+    });
+    const handleOrderStatus = (payload) => {
       if (payload.orderId === id) {
         api.get(`/orders/${id}`).then((res) => {
           setOrder(res.data.order);
         });
       }
-    });
-    return () => socket.disconnect();
+    };
+    socket.on("order:status", handleOrderStatus);
+    return () => {
+      socket.off("order:status", handleOrderStatus);
+    };
   }, [id, user]);
 
   if (!order) {

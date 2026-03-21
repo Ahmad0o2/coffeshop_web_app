@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { io } from "socket.io-client";
 import api from "../../services/api";
 import useAuth from "../../hooks/useAuth";
 import useSettings from "../../hooks/useSettings";
 import useTheme from "../../hooks/useTheme";
 import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { buildSocketConnectionOptions } from "../../utils/socketAuth";
+import { connectSocket } from "../../services/socketClient";
 import { cn } from "../../lib/utils";
 import OrdersTab from "./OrdersTab";
 import ProductsTab from "./ProductsTab";
@@ -106,8 +105,11 @@ export default function AdminDashboard() {
   );
 
   useEffect(() => {
-    if (!isAuthenticated) return;
-    const socket = io(socketUrl, buildSocketConnectionOptions(user));
+    if (!isAuthenticated || !user?.id) return undefined;
+
+    const socket = connectSocket(socketUrl, {
+      auth: { userId: String(user.id), role: user.role },
+    });
 
     const handleCatalogChange = () => {
       if (canManageProducts || canManageRewards) {
@@ -186,7 +188,6 @@ export default function AdminDashboard() {
       socket.off("order:updated", handleOrderChange);
       socket.off("order:feedback", handleOrderChange);
       socket.off("staff:changed", handleStaffChange);
-      socket.disconnect();
     };
   }, [
     canManageEvents,

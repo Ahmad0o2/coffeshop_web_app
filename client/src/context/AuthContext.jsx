@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { io } from "socket.io-client";
 import { AuthContext } from "./auth-context";
 import api, {
   setAuthFailureHandler,
   setAuthSessionHandler,
 } from "../services/api";
-import { buildSocketConnectionOptions } from "../utils/socketAuth";
+import { connectSocket } from "../services/socketClient";
 import {
   clearAuthSession,
   getAccessToken,
@@ -132,9 +131,13 @@ export function AuthProvider({ children }) {
   }, [saveAuth]);
 
   useEffect(() => {
-    if (!token || !user?.id) return;
-    const socketAuthOptions = buildSocketConnectionOptions(user);
-    const socket = io(socketUrl, socketAuthOptions);
+    const socket = connectSocket(socketUrl, {
+      auth: token && user?.id
+        ? { userId: String(user.id), role: user.role }
+        : {},
+    });
+
+    if (!token || !user?.id) return undefined;
 
     const handleStaffChange = (payload) => {
       if (String(payload?.subjectId) === String(user.id)) {
@@ -164,7 +167,6 @@ export function AuthProvider({ children }) {
     return () => {
       socket.off("staff:changed", handleStaffChange);
       socket.off("order:status", handleOrderStatus);
-      socket.disconnect();
     };
   }, [token, user, refreshProfile, mergeUser]);
 

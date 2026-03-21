@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { io } from "socket.io-client";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 import { Badge } from "../components/ui/badge";
@@ -9,7 +8,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import SelectMenu from "../components/common/SelectMenu";
 import { getApiErrorMessage } from "../utils/apiErrors";
-import { buildSocketConnectionOptions } from "../utils/socketAuth";
+import { connectSocket } from "../services/socketClient";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 const ACTIVITY_LIMIT = 250;
@@ -77,9 +76,11 @@ export default function AdminActivity() {
   }, [fetchedLogs]);
 
   useEffect(() => {
-    if (!isAuthenticated || !isAdmin) return undefined;
+    if (!isAuthenticated || !isAdmin || !user?.id) return undefined;
 
-    const socket = io(socketUrl, buildSocketConnectionOptions(user));
+    const socket = connectSocket(socketUrl, {
+      auth: { userId: String(user.id), role: user.role },
+    });
 
     const handleAdminActivity = (payload) => {
       setActivityLogs((prev) => {
@@ -96,7 +97,6 @@ export default function AdminActivity() {
 
     return () => {
       socket.off("admin:activity", handleAdminActivity);
-      socket.disconnect();
     };
   }, [isAuthenticated, isAdmin, user]);
 

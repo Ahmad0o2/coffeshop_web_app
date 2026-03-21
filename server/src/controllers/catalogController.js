@@ -12,8 +12,17 @@ const buildInlineImageUrl = (product) => {
   return product.imageUrl || ''
 }
 
-const buildProductImageRoute = (product) =>
-  product?._id ? `/api/v1/products/${String(product._id)}/image` : ''
+const buildProductImageUrl = (product) => {
+  if (product?.image?.data && product?.image?.contentType) {
+    return product?._id ? `/api/v1/products/${String(product._id)}/image` : ''
+  }
+
+  if (product?.image?.contentType) {
+    return product?._id ? `/api/v1/products/${String(product._id)}/image` : ''
+  }
+
+  return product?.imageUrl || ''
+}
 
 const parseList = (value) => {
   if (!value) return []
@@ -110,7 +119,7 @@ const mapProduct = (product, { includeInlineImage = false } = {}) => {
     ...product.toObject(),
     imageUrl: includeInlineImage
       ? buildInlineImageUrl(product)
-      : buildProductImageRoute(product),
+      : buildProductImageUrl(product),
     sizePrices: buildSizePrices(product),
     inventoryQuantity,
     lowStockThreshold,
@@ -230,7 +239,7 @@ export const getProducts = asyncHandler(async (req, res) => {
 
   const total = await Product.countDocuments(query)
   const products = await Product.find(query)
-    .select('-image')
+    .select('-image.data')
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)
@@ -248,14 +257,14 @@ export const getProduct = asyncHandler(async (req, res) => {
 })
 
 export const getProductImage = asyncHandler(async (req, res) => {
-  const product = await Product.findById(req.params.id).select('image name')
+  const product = await Product.findById(req.params.id).select('image')
 
   if (!product) {
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Product not found' })
   }
 
-  if (!product.image?.data || !product.image?.contentType) {
-    return res.status(404).json({ code: 'NOT_FOUND', message: 'Product image not found' })
+  if (!product?.image?.data) {
+    return res.status(404).json({ code: 'NOT_FOUND' })
   }
 
   res.set('Cache-Control', 'public, max-age=300')

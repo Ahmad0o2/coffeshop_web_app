@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { io } from "socket.io-client";
 import api from "../services/api";
+import { connectSocket } from "../services/socketClient";
 
 const fetchSettings = async () => {
   const { data } = await api.get("/settings");
@@ -9,15 +9,6 @@ const fetchSettings = async () => {
 };
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
-let _socket = null;
-
-const getSocket = () => {
-  if (!_socket || _socket.disconnected) {
-    _socket = io(socketUrl);
-  }
-
-  return _socket;
-};
 
 export default function useSettings() {
   const queryClient = useQueryClient();
@@ -27,7 +18,7 @@ export default function useSettings() {
   });
 
   useEffect(() => {
-    const socket = getSocket();
+    const socket = connectSocket(socketUrl);
     const handler = (payload) => {
       if (payload?.settings) {
         queryClient.setQueryData(["settings"], payload.settings);

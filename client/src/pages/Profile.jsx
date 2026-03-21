@@ -9,7 +9,6 @@ import { Badge } from "../components/ui/badge";
 import SelectMenu from "../components/common/SelectMenu";
 import OrderStatus from "../components/order/OrderStatus";
 import OrderStars from "../components/order/OrderStars";
-import { io } from "socket.io-client";
 import { getApiErrorMessage } from "../utils/apiErrors";
 import { ListSkeleton } from "../components/common/PageSkeleton";
 import useTheme from "../hooks/useTheme";
@@ -21,7 +20,7 @@ import {
   loadOrderEditSession,
   saveOrderEditSession,
 } from "../utils/orderEditSession";
-import { buildSocketConnectionOptions } from "../utils/socketAuth";
+import { connectSocket } from "../services/socketClient";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 const orderDateFilterOptions = ["All Dates", "Today", "Yesterday", "Last 7 Days", "This Month", "This Year"];
@@ -662,8 +661,11 @@ export default function Profile() {
   }, [isAuthenticated, loadOrders]);
 
   useEffect(() => {
-    if (!isAuthenticated || !user?.id) return;
-    const socket = io(socketUrl, buildSocketConnectionOptions(user));
+    if (!isAuthenticated || !user?.id) return undefined;
+
+    const socket = connectSocket(socketUrl, {
+      auth: { userId: String(user.id), role: user.role },
+    });
     const handler = (payload) => {
       if (!payload?.orderId) return;
       if (payload.event === "order:updated" || payload.event === "order:feedback") {
@@ -693,7 +695,12 @@ export default function Profile() {
     socket.on("order:new", handler);
     socket.on("order:updated", handler);
     socket.on("order:feedback", handler);
-    return () => socket.disconnect();
+    return () => {
+      socket.off("order:status", handler);
+      socket.off("order:new", handler);
+      socket.off("order:updated", handler);
+      socket.off("order:feedback", handler);
+    };
   }, [isAuthenticated, user, loadOrders, refreshProfile]);
 
   if (!isAuthenticated) {

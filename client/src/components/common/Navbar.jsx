@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { NavLink, Link, useLocation } from "react-router-dom";
-import { io } from "socket.io-client";
 import useCart from "../../hooks/useCart";
 import useAuth from "../../hooks/useAuth";
 import useSettings from "../../hooks/useSettings";
 import api from "../../services/api";
-import { buildSocketConnectionOptions } from "../../utils/socketAuth";
+import { connectSocket } from "../../services/socketClient";
 import {
   CartIcon,
   CloseIcon,
@@ -162,9 +161,11 @@ export default function Navbar() {
   ].filter((item) => item.enabled);
 
   useEffect(() => {
-    if (!isAuthenticated || !canManageOrders) return undefined;
+    if (!isAuthenticated || !canManageOrders || !user?.id) return undefined;
 
-    const socket = io(socketUrl, buildSocketConnectionOptions(user));
+    const socket = connectSocket(socketUrl, {
+      auth: { userId: String(user.id), role: user.role },
+    });
     const syncAdminOrders = () => {
       queryClient.invalidateQueries({ queryKey: ["navbar-admin-orders"] });
     };
@@ -179,7 +180,6 @@ export default function Navbar() {
       socket.off("order:status", syncAdminOrders);
       socket.off("order:updated", syncAdminOrders);
       socket.off("order:feedback", syncAdminOrders);
-      socket.disconnect();
     };
   }, [canManageOrders, isAuthenticated, queryClient, user]);
   const isAdminDrawerItemActive = (to) => {

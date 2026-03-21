@@ -12,8 +12,8 @@ import { buildPaginatedResponse, parsePagination } from '../utils/pagination.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
 
 const buildProductImageUrl = (product) => {
-  if (product?.image?.data && product?.image?.contentType) {
-    return `data:${product.image.contentType};base64,${product.image.data}`
+  if (product?.image?.data || product?.image?.contentType) {
+    return product?._id ? `/api/v1/products/${String(product._id)}/image` : ''
   }
   return product?.imageUrl || ''
 }
@@ -22,10 +22,11 @@ const mapOrder = (order) => {
   const mapped = order.toObject()
   mapped.items = (mapped.items || []).map((item) => {
     if (item.productId && typeof item.productId === 'object') {
+      const { image, ...productPayload } = item.productId
       return {
         ...item,
         productId: {
-          ...item.productId,
+          ...productPayload,
           imageUrl: buildProductImageUrl(item.productId),
         },
       }
@@ -51,7 +52,10 @@ const canManageOrdersForUser = (user) =>
   (user?.role === 'Staff' && (user?.permissions || []).includes('manageOrders'))
 
 const loadOrderWithRelations = (orderId, { includeUser = false } = {}) => {
-  let query = Order.findById(orderId).populate('items.productId')
+  let query = Order.findById(orderId).populate({
+    path: 'items.productId',
+    select: '-image.data',
+  })
 
   if (includeUser) {
     query = query.populate('userId', 'fullName phone email')
@@ -385,7 +389,10 @@ export const getOrders = asyncHandler(async (req, res) => {
   })
   const total = await Order.countDocuments(filter)
   let query = Order.find(filter)
-    .populate('items.productId')
+    .populate({
+      path: 'items.productId',
+      select: '-image.data',
+    })
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit)

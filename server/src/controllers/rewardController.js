@@ -8,8 +8,8 @@ import { redeemSchema, rewardSchema } from '../validators/reward.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
 
 const buildProductImageUrl = (product) => {
-  if (product?.image?.data && product?.image?.contentType) {
-    return `data:${product.image.contentType};base64,${product.image.data}`
+  if (product?.image?.data || product?.image?.contentType) {
+    return product?._id ? `/api/v1/products/${String(product._id)}/image` : ''
   }
   return product?.imageUrl || ''
 }
@@ -18,15 +18,18 @@ const mapReward = (reward) => {
   const mapped = reward?.toObject ? reward.toObject() : reward
   const product =
     mapped?.productId && typeof mapped.productId === 'object' ? mapped.productId : null
+  const productPayload = product
+    ? (({ image, ...rest }) => rest)(product)
+    : null
 
   return {
     ...mapped,
     title: product?.name || mapped?.title || 'Reward',
     description: product?.description || mapped?.description || '',
     imageUrl: buildProductImageUrl(product),
-    product: product
+    product: productPayload
       ? {
-          ...product,
+          ...productPayload,
           imageUrl: buildProductImageUrl(product),
         }
       : null,
@@ -34,13 +37,13 @@ const mapReward = (reward) => {
 }
 
 const attachRewardProduct = async (reward) => {
-  await reward.populate('productId')
+  await reward.populate({ path: 'productId', select: '-image.data' })
   return reward
 }
 
 export const getRewards = asyncHandler(async (req, res) => {
   const rewards = await Reward.find({ isActive: true })
-    .populate('productId')
+    .populate({ path: 'productId', select: '-image.data' })
     .sort({ pointsRequired: 1 })
   res.json({ rewards: rewards.map(mapReward) })
 })
@@ -52,7 +55,7 @@ export const getAdminRewards = asyncHandler(async (_req, res) => {
   })
   const total = await Reward.countDocuments()
   const rewards = await Reward.find()
-    .populate('productId')
+    .populate({ path: 'productId', select: '-image.data' })
     .sort({ pointsRequired: 1, createdAt: -1 })
     .skip(skip)
     .limit(limit)
@@ -164,7 +167,7 @@ export const getRewardHistory = asyncHandler(async (req, res) => {
   const redemptions = await RewardRedemption.find({ userId: req.user._id })
     .populate({
       path: 'rewardId',
-      populate: { path: 'productId' },
+      populate: { path: 'productId', select: '-image.data' },
     })
     .sort({ createdAt: -1 })
 
