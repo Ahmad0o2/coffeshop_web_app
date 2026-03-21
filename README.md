@@ -1,165 +1,136 @@
 # Cortina.D Coffee House Web App
 
-A full-stack coffee shop ordering platform with a React frontend, an Express + MongoDB API, real-time order updates, rewards, events, gallery/location pages, and an admin CMS-style dashboard.
+Cortina.D is a full-stack coffee shop platform with a customer-facing storefront, a real-time order flow, rewards, events, a gallery/location experience, and an admin CMS-style dashboard for managing content and operations.
 
-## What This Project Includes
+This repository contains both parts of the app:
+- `client/` -> React + Vite frontend
+- `server/` -> Express + MongoDB API
 
-- Customer-facing storefront
-- Product menu with categories, sizes, add-ons, and product detail pages
+## Table of Contents
+- [Project Overview](#project-overview)
+- [Main Features](#main-features)
+- [Current Product Decisions](#current-product-decisions)
+- [Tech Stack](#tech-stack)
+- [Repository Structure](#repository-structure)
+- [How to Run Locally](#how-to-run-locally)
+- [Environment Variables](#environment-variables)
+- [Roles and Access](#roles-and-access)
+- [Important User Flows](#important-user-flows)
+- [API Overview](#api-overview)
+- [Useful Commands](#useful-commands)
+- [Troubleshooting](#troubleshooting)
+- [Deployment Notes](#deployment-notes)
+- [Additional Documentation](#additional-documentation)
+
+## Project Overview
+The app is designed for a coffee shop that needs:
+- a polished public website
+- a menu with product details, sizes, and add-ons
+- user accounts and order history
+- live order updates
+- rewards and points
+- events and event registration
+- admin content management
+- inventory-aware ordering
+
+The dashboard is intentionally CMS-like, so non-technical staff can manage products, rewards, homepage media, events, and staff access from one place.
+
+## Main Features
+### Customer Experience
+- Home page with configurable highlights and media
+- Menu page with filters, product cards, and product detail pages
 - Cart and checkout flow
-- Live order status updates
-- Rewards and points system
-- Events and event registration
-- Gallery and location pages
-- Admin dashboard for products, rewards, events, homepage media, activity log, and inventory
-- Inventory-aware ordering with low-stock and out-of-stock handling
+- Order history grouped by day
+- Order editing before an order becomes `Ready` or `Completed`
+- Rewards and redemption history
+- Events browsing and registration
+- Gallery and interactive location page
+- Authentication with email OTP flows
+
+### Admin Experience
+- Live orders view with grouped daily summaries
+- Product and category management
+- Inventory management with low-stock and out-of-stock states
+- Homepage media and branding management
+- Rewards and events management
+- Team/staff management
+- Activity log
+- Mobile and desktop admin navigation
+
+### Real-Time Features
+- Socket.IO-based updates for orders and dashboard data
+- Live refreshes after order status changes
+- Real-time admin indicators for incoming orders and inventory warnings
+
+## Current Product Decisions
+These are current app behaviors that are intentional right now:
+- Checkout is `cash only` for now.
+- Online/electronic payment is temporarily disabled until a payment gateway is connected.
+- OTP and password reset are email-based and use Brevo.
+- Inventory can be tracked per product or left open/untracked.
+- Feedback is only available for the user's latest completed order.
 
 ## Tech Stack
+### Frontend
+- React 19
+- Vite
+- Tailwind CSS
+- React Router
+- React Query
+- Axios
+- Socket.IO Client
+- Framer Motion
 
-- Frontend: React 19, Vite, Tailwind CSS, React Router, React Query
-- Backend: Node.js, Express 5, MongoDB, Mongoose, Socket.IO
-- Validation and security: Zod, Helmet, CORS, rate limiting
+### Backend
+- Node.js
+- Express 5
+- MongoDB + Mongoose
+- Socket.IO
+- Zod
+- Helmet
+- CORS
+- Express Rate Limit
+- Multer
+- bcryptjs
+- JWT
 
-## Project Structure
-
+## Repository Structure
 ```text
 coffeshop_web_app/
-|- client/   # React frontend
-|- server/   # Express + MongoDB backend
-|- .gitignore
-\- README.md
+|- client/
+|  |- public/                  # static assets
+|  |- src/
+|  |  |- components/           # shared and feature UI
+|  |  |- context/              # auth, cart, theme providers
+|  |  |- hooks/                # reusable hooks
+|  |  |- pages/                # route-level screens
+|  |  |- services/             # API client config
+|  |  |- utils/                # pricing, inventory, sessions, helpers
+|  |  |- App.jsx               # app routes
+|  |  \- main.jsx              # frontend entry point
+|  |- .env.example
+|  \- package.json
+|- server/
+|  |- src/
+|  |  |- config/               # db config
+|  |  |- constants/            # permissions and constants
+|  |  |- controllers/          # route handlers
+|  |  |- middleware/           # auth, permissions, errors
+|  |  |- models/               # mongoose models
+|  |  |- routes/               # express route modules
+|  |  |- services/             # external integrations (Brevo)
+|  |  |- utils/                # async helpers, realtime, seed
+|  |  |- validators/           # zod schemas
+|  |  |- app.js                # express app wiring
+|  |  \- server.js             # server entry point
+|  |- .env.example
+|  \- package.json
+|- README.md
+\- .gitignore
 ```
 
-## Main Routes
-
-### Frontend
-
-- `/` Home
-- `/menu` Menu
-- `/menu/:id` Product details
-- `/cart` Cart
-- `/checkout` Checkout
-- `/orders` Profile / order history
-- `/orders/:id` Order status
-- `/rewards` Rewards
-- `/points` Redemption history / points page
-- `/events` Events
-- `/gallery` Gallery
-- `/location` Location
-- `/admin` Admin dashboard
-- `/admin/activity` Admin activity log
-
-### Backend API
-
-- `/api/health`
-- `/api/v1/auth`
-- `/api/v1/orders`
-- `/api/v1/reviews`
-- `/api/v1/rewards`
-- `/api/v1/events`
-- `/api/v1/admin`
-- `/api/v1/...` catalog routes mounted from `catalogRoutes.js`
-
-## API Reference
-
-### Auth
-
-| Method | Route                   | Purpose                         |
-| ------ | ----------------------- | ------------------------------- |
-| `POST` | `/api/v1/auth/register` | Register a new user             |
-| `POST` | `/api/v1/auth/login`    | Login and receive an auth token |
-| `GET`  | `/api/v1/auth/profile`  | Get current user profile        |
-| `PUT`  | `/api/v1/auth/profile`  | Update current user profile     |
-
-### Catalog
-
-| Method | Route                    | Purpose                              |
-| ------ | ------------------------ | ------------------------------------ |
-| `GET`  | `/api/v1/categories`     | List categories                      |
-| `GET`  | `/api/v1/categories/:id` | Get one category                     |
-| `GET`  | `/api/v1/products`       | List products                        |
-| `GET`  | `/api/v1/products/:id`   | Get one product                      |
-| `GET`  | `/api/v1/settings`       | Get site settings and homepage media |
-
-### Orders
-
-| Method   | Route                              | Purpose                              |
-| -------- | ---------------------------------- | ------------------------------------ |
-| `POST`   | `/api/v1/orders`                   | Create a new order                   |
-| `GET`    | `/api/v1/orders`                   | List the authenticated user's orders |
-| `GET`    | `/api/v1/orders/:id`               | Get one order                        |
-| `PATCH`  | `/api/v1/orders/:id/status`        | Update order status                  |
-| `POST`   | `/api/v1/orders/:id/cancel`        | Cancel an order                      |
-| `DELETE` | `/api/v1/orders/:id/items/:itemId` | Remove an item from an order         |
-
-### Rewards
-
-| Method | Route                     | Purpose                |
-| ------ | ------------------------- | ---------------------- |
-| `GET`  | `/api/v1/rewards`         | List rewards           |
-| `POST` | `/api/v1/rewards/redeem`  | Redeem a reward        |
-| `GET`  | `/api/v1/rewards/history` | Get redemption history |
-
-### Events
-
-| Method | Route                             | Purpose                    |
-| ------ | --------------------------------- | -------------------------- |
-| `GET`  | `/api/v1/events`                  | List public events         |
-| `GET`  | `/api/v1/events/:id`              | Get one event              |
-| `GET`  | `/api/v1/events/registrations/me` | Get my event registrations |
-| `POST` | `/api/v1/events/:id/register`     | Register for an event      |
-| `POST` | `/api/v1/events/:id/unregister`   | Unregister from an event   |
-
-### Reviews
-
-| Method | Route             | Purpose      |
-| ------ | ----------------- | ------------ |
-| `GET`  | `/api/v1/reviews` | List reviews |
-| `POST` | `/api/v1/reviews` | Add a review |
-
-### Admin
-
-| Method   | Route                                         | Purpose                         |
-| -------- | --------------------------------------------- | ------------------------------- |
-| `GET`    | `/api/v1/admin/activity-logs`                 | List activity logs              |
-| `GET`    | `/api/v1/admin/staff`                         | List staff accounts             |
-| `POST`   | `/api/v1/admin/staff`                         | Create a staff account          |
-| `PATCH`  | `/api/v1/admin/staff/:id`                     | Update a staff account          |
-| `DELETE` | `/api/v1/admin/staff/:id`                     | Delete a staff account          |
-| `POST`   | `/api/v1/admin/categories`                    | Create category                 |
-| `PUT`    | `/api/v1/admin/categories/:id`                | Update category                 |
-| `DELETE` | `/api/v1/admin/categories/:id`                | Delete category                 |
-| `POST`   | `/api/v1/admin/products`                      | Create product                  |
-| `PUT`    | `/api/v1/admin/products/:id`                  | Update product                  |
-| `DELETE` | `/api/v1/admin/products/:id`                  | Delete product                  |
-| `GET`    | `/api/v1/admin/events`                        | List events for admin           |
-| `POST`   | `/api/v1/admin/events`                        | Create event                    |
-| `PUT`    | `/api/v1/admin/events/:id`                    | Update event                    |
-| `DELETE` | `/api/v1/admin/events/:id`                    | Delete event                    |
-| `GET`    | `/api/v1/admin/rewards`                       | List rewards for admin          |
-| `POST`   | `/api/v1/admin/rewards`                       | Create reward                   |
-| `PUT`    | `/api/v1/admin/rewards/:id`                   | Update reward                   |
-| `DELETE` | `/api/v1/admin/rewards/:id`                   | Delete reward                   |
-| `PUT`    | `/api/v1/admin/settings`                      | Update site settings and media  |
-| `PUT`    | `/api/v1/admin/settings/space-gallery/:index` | Replace one space gallery image |
-| `DELETE` | `/api/v1/admin/settings/space-gallery/:index` | Delete one space gallery image  |
-| `PUT`    | `/api/v1/admin/settings/home-display/:index`  | Replace one home media image    |
-| `DELETE` | `/api/v1/admin/settings/home-display/:index`  | Delete one home media image     |
-| `PUT`    | `/api/v1/admin/settings/gallery/:index`       | Replace one gallery image       |
-| `DELETE` | `/api/v1/admin/settings/gallery/:index`       | Delete one gallery image        |
-
-## Prerequisites
-
-Before running the project, make sure you have:
-
-- Node.js 18+ installed
-- npm installed
-- A MongoDB database connection string
-
-## Quick Start
-
+## How to Run Locally
 ### 1. Install dependencies
-
 ```bash
 cd server
 npm install
@@ -169,227 +140,192 @@ npm install
 ```
 
 ### 2. Create environment files
-
-Create these files from the examples:
-
-```bash
-server/.env
-client/.env
-```
-
-Copy the example values first:
-
-```bash
-cp server/.env.example server/.env
-cp client/.env.example client/.env
-```
-
-On Windows PowerShell:
-
+Windows PowerShell:
 ```powershell
 Copy-Item server/.env.example server/.env
 Copy-Item client/.env.example client/.env
 ```
 
+macOS / Linux:
+```bash
+cp server/.env.example server/.env
+cp client/.env.example client/.env
+```
+
 ### 3. Fill in the required environment variables
-
-#### `server/.env`
-
-| Variable           | Required | Description                                                     |
-| ------------------ | -------- | --------------------------------------------------------------- |
-| `PORT`             | Yes      | API server port, usually `5000`                                 |
-| `MONGO_URI`        | Yes      | MongoDB connection string                                       |
-| `JWT_SECRET`       | Yes      | Secret used to sign auth tokens                                 |
-| `CLIENT_ORIGIN`    | Yes      | Frontend origin, usually `http://localhost:5173`                |
-| `SEED_ON_START`    | No       | Set to `true` to seed admin/sample data on startup              |
-| `SEED_SAMPLE_DATA` | No       | Set to `true` to seed sample categories/products/rewards/events |
-| `ADMIN_EMAIL`      | No       | Admin email to create or promote during seeding                 |
-| `ADMIN_PASSWORD`   | No       | Admin password used during seeding                              |
-| `ADMIN_NAME`       | No       | Optional seeded admin display name                              |
-| `ADMIN_PHONE`      | No       | Optional seeded admin phone                                     |
-
-#### `client/.env`
-
-| Variable              | Required | Description                          |
-| --------------------- | -------- | ------------------------------------ |
-| `VITE_API_URL`        | Yes      | Backend API base URL                 |
-| `VITE_SOCKET_URL`     | Yes      | Backend socket server URL            |
-| `VITE_GALLERY_IMAGES` | No       | Optional gallery image override list |
+See the next section for exact variables.
 
 ### 4. Start the backend
-
 ```bash
 cd server
 npm run dev
 ```
-
-The API will start on:
-
+Backend default URL:
 ```text
 http://localhost:5000
 ```
 
 ### 5. Start the frontend
-
 ```bash
 cd client
 npm run dev
 ```
-
-The app will start on:
-
+Frontend default URL:
 ```text
 http://localhost:5173
 ```
 
-## Available Scripts
+## Environment Variables
+### `server/.env`
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `PORT` | Yes | API port, usually `5000` |
+| `MONGO_URI` | Yes | MongoDB connection string |
+| `JWT_SECRET` | Yes | JWT signing secret |
+| `CLIENT_ORIGIN` | Yes | Frontend origin for CORS and sockets |
+| `BREVO_API_KEY` | Optional / required for real email OTP | Brevo transactional email API key |
+| `BREVO_SENDER_EMAIL` | Optional / required for real email OTP | Verified Brevo sender email |
+| `BREVO_SENDER_NAME` | Optional | Sender name shown in email OTP messages |
+| `SEED_ON_START` | Optional | Enable boot-time seeding |
+| `SEED_SAMPLE_DATA` | Optional | Seed demo categories/products/rewards/events |
+| `ADMIN_EMAIL` | Optional | Seed or promote admin account |
+| `ADMIN_PASSWORD` | Optional | Seeded admin password |
+| `ADMIN_NAME` | Optional | Seeded admin display name |
+| `ADMIN_PHONE` | Optional | Seeded admin phone |
 
-### Frontend (`client/package.json`)
+### `client/.env`
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `VITE_API_URL` | Yes | Backend API base URL, usually `http://localhost:5000/api/v1` |
+| `VITE_SOCKET_URL` | Yes | Socket server URL, usually `http://localhost:5000` |
+| `VITE_GALLERY_IMAGES` | Optional | Optional gallery image override list |
 
-```bash
-npm run dev
-npm run build
-npm run lint
-npm run preview
-```
-
-### Backend (`server/package.json`)
-
-```bash
-npm run dev
-npm start
-```
-
-## Admin and Staff Access
-
-The app supports these user roles:
-
+## Roles and Access
+The app currently uses these roles:
 - `Customer`
 - `Staff`
 - `Admin`
 
-### Option 1: Seed an admin automatically
+### Admin
+Admin can access:
+- orders
+- products and categories
+- rewards
+- events
+- brand/home media
+- inventory
+- team management
+- activity log
 
-Set the optional admin variables in `server/.env`:
+### Staff
+Staff access is permission-based. Admin can grant specific permissions such as:
+- `manageOrders`
+- `manageProducts`
+- `manageEvents`
+- `manageRewards`
+- `manageBrand`
 
-```env
-SEED_ON_START=true
-ADMIN_EMAIL=admin@example.com
-ADMIN_PASSWORD=strong-password
-ADMIN_NAME=Cortina Admin
-```
+## Important User Flows
+### Authentication
+- Sign in and registration happen on `/sign-in`
+- Registration and password reset use email OTP
+- Successful customer sign-in redirects to the Home page
 
-Then start the server. If the account already exists, it will be promoted to `Admin`.
+### Orders
+- Checkout creates an order and redirects to `/orders`
+- Users can edit or cancel orders until they become `Ready`, `Completed`, or `Cancelled`
+- Admin sees live order updates in the dashboard
 
-### Option 2: Promote a registered user manually
+### Inventory
+- If tracking is enabled, orders reduce stock immediately
+- Cancelled orders restore stock
+- Low stock and out-of-stock products are surfaced in admin inventory views and nav indicators
 
-Register a normal user first, then update the `role` field in MongoDB to:
+### Home Content
+- Home page media is managed in the admin dashboard
+- Home menu highlights are selected from the live `Menu` picker
 
-```text
-Admin
-```
+## API Overview
+These are the main API groups:
+- `/api/health`
+- `/api/v1/auth`
+- `/api/v1/orders`
+- `/api/v1/reviews`
+- `/api/v1/rewards`
+- `/api/v1/events`
+- `/api/v1/admin`
+- `/api/v1/products`
+- `/api/v1/categories`
+- `/api/v1/settings`
 
-or:
+### Common examples
+- `POST /api/v1/auth/login` -> sign in
+- `POST /api/v1/auth/register` -> register new user
+- `POST /api/v1/auth/otp/request` -> send email OTP
+- `POST /api/v1/auth/password-reset` -> reset password with OTP
+- `POST /api/v1/orders` -> create order
+- `PATCH /api/v1/orders/:id` -> edit an existing order
+- `PATCH /api/v1/orders/:id/status` -> admin updates order status
+- `PUT /api/v1/admin/settings` -> update home media and settings
 
-```text
-Staff
-```
-
-## Inventory Notes
-
-Inventory is product-based.
-
-- `inventoryQuantity = null` means open inventory / not tracked
-- Low stock is controlled by `lowStockThreshold`
-- Orders reduce tracked stock
-- Cancelled orders can restore reserved stock
-- Out-of-stock products are blocked from ordering
-
-## Real-Time Updates
-
-The backend uses Socket.IO for live updates such as:
-
-- order status changes
-- order-related UI refreshes
-- points/reward related refresh behavior
-
-Make sure `VITE_SOCKET_URL` in `client/.env` matches the running backend.
-
-## Recommended Development Workflow
-
-### Backend terminal
-
-```bash
-cd server
-npm run dev
-```
-
-### Frontend terminal
-
+## Useful Commands
+### Frontend
 ```bash
 cd client
 npm run dev
+npm run lint
+npm run build
+npm run preview
+```
+
+### Backend
+```bash
+cd server
+npm run dev
+npm start
 ```
 
 ## Troubleshooting
-
-### Frontend cannot reach backend
-
+### The frontend cannot reach the backend
 Check:
-
-- `server` is running
-- `VITE_API_URL` points to `http://localhost:5000/api/v1`
-- `VITE_SOCKET_URL` points to `http://localhost:5000`
+- backend is running
+- `VITE_API_URL` is correct
+- `VITE_SOCKET_URL` is correct
 - `CLIENT_ORIGIN` in `server/.env` matches the frontend URL
 
 ### MongoDB connection fails
-
 Check:
-
 - `MONGO_URI` is valid
-- your MongoDB network access settings allow your machine
-- your database user credentials are correct
+- your MongoDB user credentials are correct
+- your Atlas/network access rules allow your machine
+
+### OTP email is not arriving
+Check:
+- `BREVO_API_KEY` is valid
+- `BREVO_SENDER_EMAIL` is verified in Brevo
+- spam/junk folder
+- server logs for Brevo errors
 
 ### Admin dashboard is not visible
-
-Check that the signed-in account has role:
-
+Check that the user role is:
 - `Admin`
-- or `Staff`
+- or `Staff` with the right permissions for the section being accessed
 
-### Seeded admin is not created
+### Build fails with a locked file in `client/dist`
+On Windows this can happen if a file inside `dist/` is locked by another process.
+Fix options:
+- close the process using the file
+- delete `client/dist`
+- run the build again
 
-Check that:
-
-- `SEED_ON_START=true`
-- `ADMIN_EMAIL` is set
-- `ADMIN_PASSWORD` is set
-
-## Notes for Deployment
-
+## Deployment Notes
 - Do not commit real `.env` files
-- Only `.env.example` files are tracked
-- Set production values for:
-  - backend environment variables
-  - frontend `VITE_*` variables
-  - `CLIENT_ORIGIN`
-  - MongoDB connection
+- Only `.env.example` files should be tracked
+- Set production-safe values for all backend and frontend environment variables
+- Make sure `CLIENT_ORIGIN` matches the deployed frontend domain
+- Replace local MongoDB values with production MongoDB values
+- Add a real payment gateway before re-enabling online card payment
 
-## Repository Hygiene
-
-This repository is configured to ignore:
-
-- `.env` files
-- `node_modules`
-- build output
-- log files
-
-Only example environment files are committed:
-
-- `client/.env.example`
-- `server/.env.example`
-
-## Extra Documentation
-
-- `client/README.md` for frontend setup and structure
-- `server/README.md` for backend setup and server notes
+## Additional Documentation
+- `client/README.md` -> frontend-specific setup and structure
+- `server/README.md` -> backend-specific setup and route notes
