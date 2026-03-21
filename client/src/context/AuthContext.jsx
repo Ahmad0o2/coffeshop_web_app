@@ -1,72 +1,110 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import api from "../services/api";
 import { io } from "socket.io-client";
 import { AuthContext } from "./auth-context";
+import api, {
+  setAuthFailureHandler,
+  setAuthSessionHandler,
+} from "../services/api";
+import {
+  clearAuthSession,
+  getAccessToken,
+  getRefreshToken,
+  getStoredUser,
+  storeAuthSession,
+} from "../services/authStorage";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    const stored = localStorage.getItem("user");
-    return stored ? JSON.parse(stored) : null;
-  });
-  const [token, setToken] = useState(() => localStorage.getItem("token"));
+  const [user, setUser] = useState(() => getStoredUser());
+  const [token, setToken] = useState(() => getAccessToken());
 
-  const saveAuth = (nextUser, nextToken) => {
+  const saveAuth = useCallback((nextUser, nextToken, nextRefreshToken = null) => {
     setUser(nextUser);
     setToken(nextToken);
-    if (nextUser) {
-      localStorage.setItem("user", JSON.stringify(nextUser));
-    } else {
-      localStorage.removeItem("user");
-    }
-    if (nextToken) {
-      localStorage.setItem("token", nextToken);
-    } else {
-      localStorage.removeItem("token");
-    }
-  };
+    storeAuthSession({
+      user: nextUser,
+      token: nextToken,
+      refreshToken:
+        nextRefreshToken !== null ? nextRefreshToken : getRefreshToken(),
+    });
+  }, []);
 
   const mergeUser = useCallback((patch) => {
     setUser((prev) => {
       if (!prev) return prev;
       const nextUser = { ...prev, ...patch };
-      localStorage.setItem("user", JSON.stringify(nextUser));
+      storeAuthSession({
+        user: nextUser,
+        token: getAccessToken(),
+        refreshToken: getRefreshToken(),
+      });
       return nextUser;
     });
   }, []);
 
   const login = useCallback(async (payload) => {
     const { data } = await api.post("/auth/login", payload);
-    saveAuth(data.user, data.token);
+    saveAuth(data.user, data.token, data.refreshToken || "");
     return data;
-  }, []);
+  }, [saveAuth]);
 
   const register = useCallback(async (payload) => {
     const { data } = await api.post("/auth/register", payload);
-    saveAuth(data.user, data.token);
+    saveAuth(data.user, data.token, data.refreshToken || "");
     return data;
-  }, []);
+  }, [saveAuth]);
 
-  const logout = useCallback(() => {
-    saveAuth(null, null);
+  const logout = useCallback(async () => {
+    const refreshToken = getRefreshToken();
+
+    try {
+      await api.post("/auth/logout", refreshToken ? { refreshToken } : {});
+    } catch {
+      // Best effort only; local sign-out still proceeds.
+    }
+
+    clearAuthSession();
+    setUser(null);
+    setToken(null);
     if (typeof window !== "undefined") {
       window.location.assign("/");
     }
   }, []);
 
   const refreshProfile = useCallback(async () => {
-    if (!token) return null;
+    if (!getAccessToken()) return null;
     try {
       const { data } = await api.get("/auth/profile");
       if (data?.user) {
-        saveAuth(data.user, token);
+        saveAuth(data.user, getAccessToken(), getRefreshToken());
       }
       return data?.user || null;
     } catch {
       return null;
     }
-  }, [token]);
+  }, [saveAuth]);
+
+  useEffect(() => {
+    setAuthFailureHandler(() => {
+      clearAuthSession();
+      setUser(null);
+      setToken(null);
+      if (typeof window !== "undefined" && window.location.pathname !== "/") {
+        window.location.assign("/");
+      }
+    });
+
+    setAuthSessionHandler((session) => {
+      setUser(session?.user || null);
+      setToken(session?.token || null);
+    });
+
+    return () => {
+      setAuthFailureHandler(null);
+      setAuthSessionHandler(null);
+    };
+  }, []);
 
   useEffect(() => {
     if (!token || !user?.id) return;
@@ -108,7 +146,7 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       token,
-      isAuthenticated: Boolean(token),
+      isAuthenticated: Boolean(token && user),
       login,
       register,
       logout,

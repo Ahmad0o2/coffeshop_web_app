@@ -104,6 +104,7 @@ npm run dev
 npm run lint
 npm run build
 npm run preview
+npm run test
 ```
 
 ## Key Frontend Flows
@@ -111,6 +112,7 @@ npm run preview
 - Auth UI lives on `/sign-in`
 - Registration uses email OTP
 - Password reset also uses email OTP
+- API requests use access tokens with automatic refresh token rotation
 - Auth state is stored in local storage and exposed through context/hooks
 
 ### Cart and Checkout

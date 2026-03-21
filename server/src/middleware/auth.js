@@ -1,6 +1,6 @@
-import jwt from 'jsonwebtoken'
 import User from '../models/User.js'
 import asyncHandler from '../utils/asyncHandler.js'
+import { verifyAccessToken } from '../utils/token.js'
 
 export const protect = asyncHandler(async (req, res, next) => {
   const authHeader = req.headers.authorization || ''
@@ -12,14 +12,12 @@ export const protect = asyncHandler(async (req, res, next) => {
     return res.status(401).json({ code: 'UNAUTHORIZED', message: 'No token' })
   }
 
-  const secret = process.env.JWT_SECRET
-  if (!secret) {
-    return res
-      .status(500)
-      .json({ code: 'SERVER_ERROR', message: 'JWT secret missing' })
+  let decoded
+  try {
+    decoded = verifyAccessToken(token)
+  } catch {
+    return res.status(401).json({ code: 'UNAUTHORIZED', message: 'Invalid token' })
   }
-
-  const decoded = jwt.verify(token, secret)
   const user = await User.findById(decoded.id).select('-passwordHash')
   if (!user) {
     return res.status(401).json({ code: 'UNAUTHORIZED', message: 'User not found' })

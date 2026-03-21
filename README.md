@@ -193,6 +193,9 @@ http://localhost:5173
 | `PORT` | Yes | API port, usually `5000` |
 | `MONGO_URI` | Yes | MongoDB connection string |
 | `JWT_SECRET` | Yes | JWT signing secret |
+| `REFRESH_TOKEN_SECRET` | Optional | Separate secret for refresh tokens; falls back to `JWT_SECRET` if omitted |
+| `ACCESS_TOKEN_TTL` | Optional | Access token lifetime, default `15m` |
+| `REFRESH_TOKEN_TTL` | Optional | Refresh token lifetime, default `30d` |
 | `CLIENT_ORIGIN` | Yes | Frontend origin for CORS and sockets |
 | `BREVO_API_KEY` | Optional / required for real email OTP | Brevo transactional email API key |
 | `BREVO_SENDER_EMAIL` | Optional / required for real email OTP | Verified Brevo sender email |
@@ -299,7 +302,7 @@ Complete registration:
 ```bash
 curl -X POST http://localhost:5000/api/v1/auth/register \
   -H "Content-Type: application/json" \
-  -d "{\"fullName\":\"Test User\",\"email\":\"user@example.com\",\"phone\":\"0790000000\",\"password\":\"strongpass123\",\"otp\":\"123456\"}"
+  -d "{\"fullName\":\"Test User\",\"email\":\"user@example.com\",\"phone\":\"0790000000\",\"password\":\"strongpass123\",\"otpCode\":\"123456\"}"
 ```
 
 ### 2. Sign in
@@ -339,7 +342,7 @@ Reset password:
 ```bash
 curl -X POST http://localhost:5000/api/v1/auth/password-reset \
   -H "Content-Type: application/json" \
-  -d "{\"email\":\"user@example.com\",\"otp\":\"123456\",\"newPassword\":\"newstrongpass123\"}"
+  -d "{\"email\":\"user@example.com\",\"otpCode\":\"123456\",\"newPassword\":\"newstrongpass123\"}"
 ```
 
 ## Useful Commands
@@ -350,6 +353,7 @@ npm run dev
 npm run lint
 npm run build
 npm run preview
+npm run test
 ```
 
 ### Backend
@@ -357,6 +361,7 @@ npm run preview
 cd server
 npm run dev
 npm start
+npm run test
 ```
 
 ## Troubleshooting

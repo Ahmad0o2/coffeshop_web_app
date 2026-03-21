@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs'
+import RefreshToken from '../models/RefreshToken.js'
 import User from '../models/User.js'
 import asyncHandler from '../utils/asyncHandler.js'
 import { staffCreateSchema, staffUpdateSchema } from '../validators/staff.js'
@@ -125,6 +126,10 @@ export const updateStaff = asyncHandler(async (req, res) => {
   if (payload.password) {
     const salt = await bcrypt.genSalt(10)
     staff.passwordHash = await bcrypt.hash(payload.password, salt)
+    await RefreshToken.updateMany(
+      { userId: staff._id, revokedAt: null },
+      { $set: { revokedAt: new Date() } }
+    )
   }
 
   await staff.save()

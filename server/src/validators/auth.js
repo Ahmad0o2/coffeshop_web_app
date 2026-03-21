@@ -79,3 +79,11 @@ export const resetPasswordSchema = z.object({
   otpCode: requiredOtpCodeSchema,
   newPassword: z.string().min(6),
 })
+
+export const refreshTokenSchema = z.object({
+  refreshToken: z.string().min(10),
+})
+
+export const logoutSchema = z.object({
+  refreshToken: z.string().min(10).optional(),
+})

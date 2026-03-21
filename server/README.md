@@ -59,6 +59,9 @@ Create `server/.env` from `server/.env.example`.
 PORT=5000
 MONGO_URI=your_mongodb_connection
 JWT_SECRET=your_secret
+REFRESH_TOKEN_SECRET=
+ACCESS_TOKEN_TTL=15m
+REFRESH_TOKEN_TTL=30d
 CLIENT_ORIGIN=http://localhost:5173
 ```
 
@@ -94,6 +97,7 @@ npm run dev
 ### Run in production mode
 ```bash
 npm start
+npm run test
 ```
 
 Default backend URL:
@@ -163,6 +167,7 @@ curl -X PATCH http://localhost:5000/api/v1/admin/staff/STAFF_ID \
 ## Important Server Behaviors
 ### Authentication
 - JWT-based auth
+- short-lived access tokens plus rotating refresh tokens
 - Profile endpoints for the authenticated user
 - Email OTP for registration and password reset
 

@@ -1,12 +1,19 @@
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 import AuthOtp from '../models/AuthOtp.js'
+import RefreshToken from '../models/RefreshToken.js'
 import User from '../models/User.js'
 import { sendBrevoTransactionalEmail } from '../services/brevoEmail.js'
 import asyncHandler from '../utils/asyncHandler.js'
-import { generateToken } from '../utils/token.js'
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from '../utils/token.js'
 import {
   loginSchema,
+  logoutSchema,
+  refreshTokenSchema,
   registerSchema,
   requestOtpSchema,
   resetPasswordSchema,
@@ -34,6 +41,70 @@ const OTP_EXPIRY_MINUTES = 10
 const MAX_OTP_ATTEMPTS = 5
 
 const createOtpCode = () => String(crypto.randomInt(100000, 1000000))
+const createRefreshTokenId = () => crypto.randomUUID()
+
+const getRefreshTokenExpiryDate = () => {
+  const ttl = process.env.REFRESH_TOKEN_TTL || '30d'
+  const match = ttl.match(/^(\d+)([smhd])$/)
+
+  if (!match) {
+    return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+  }
+
+  const [, rawAmount, unit] = match
+  const amount = Number(rawAmount)
+  const unitMap = {
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+  }
+
+  return new Date(Date.now() + amount * unitMap[unit])
+}
+
+const createAuthPayload = async (user, { previousTokenRecord = null } = {}) => {
+  const tokenId = createRefreshTokenId()
+  const accessToken = generateAccessToken(user._id)
+  const refreshToken = generateRefreshToken(user._id, tokenId)
+
+  await RefreshToken.create({
+    userId: user._id,
+    tokenId,
+    tokenHash: RefreshToken.hashToken(refreshToken),
+    expiresAt: getRefreshTokenExpiryDate(),
+  })
+
+  if (previousTokenRecord) {
+    previousTokenRecord.revokedAt = new Date()
+    previousTokenRecord.replacedByTokenId = tokenId
+    await previousTokenRecord.save()
+  }
+
+  return {
+    user: sanitizeUser(user),
+    token: accessToken,
+    refreshToken,
+  }
+}
+
+const revokeRefreshTokenRecord = async (refreshToken) => {
+  if (!refreshToken) return
+
+  const tokenHash = RefreshToken.hashToken(refreshToken)
+  const record = await RefreshToken.findOne({ tokenHash, revokedAt: null })
+  if (!record) return
+
+  record.revokedAt = new Date()
+  await record.save()
+}
+
+const revokeAllRefreshTokensForUser = async (userId) => {
+  await RefreshToken.updateMany(
+    { userId, revokedAt: null },
+    { $set: { revokedAt: new Date() } }
+  )
+}
 
 const createOtpMessage = (purpose) =>
   purpose === 'register'
@@ -304,8 +375,8 @@ export const register = asyncHandler(async (req, res) => {
     throw error
   }
 
-  const token = generateToken(user._id)
-  res.status(201).json({ user: sanitizeUser(user), token })
+  const authPayload = await createAuthPayload(user)
+  res.status(201).json(authPayload)
 })
 
 export const login = asyncHandler(async (req, res) => {
@@ -332,8 +403,8 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(401).json({ code: 'UNAUTHORIZED', message: 'Invalid login' })
   }
 
-  const token = generateToken(user._id)
-  res.json({ user: sanitizeUser(user), token })
+  const authPayload = await createAuthPayload(user)
+  res.json(authPayload)
 })
 
 export const getProfile = asyncHandler(async (req, res) => {
@@ -371,10 +442,78 @@ export const resetPassword = asyncHandler(async (req, res) => {
   const salt = await bcrypt.genSalt(10)
   user.passwordHash = await bcrypt.hash(newPassword, salt)
   await user.save()
+  await revokeAllRefreshTokensForUser(user._id)
 
   res.json({
     message: 'Password reset successful. You can sign in with the new password now.',
   })
+})
+
+export const refreshSession = asyncHandler(async (req, res) => {
+  const payload = refreshTokenSchema.parse(req.body)
+  let decoded
+  try {
+    decoded = verifyRefreshToken(payload.refreshToken)
+  } catch {
+    return res.status(401).json({
+      code: 'UNAUTHORIZED',
+      message: 'Refresh token is invalid or expired.',
+    })
+  }
+
+  const tokenHash = RefreshToken.hashToken(payload.refreshToken)
+  const storedToken = await RefreshToken.findOne({
+    tokenId: decoded.tokenId,
+    tokenHash,
+    userId: decoded.id,
+  })
+
+  if (!storedToken) {
+    return res.status(401).json({
+      code: 'UNAUTHORIZED',
+      message: 'Refresh token is invalid or expired.',
+    })
+  }
+
+  if (storedToken.revokedAt) {
+    await revokeAllRefreshTokensForUser(decoded.id)
+    return res.status(401).json({
+      code: 'UNAUTHORIZED',
+      message: 'Refresh token has already been used. Please sign in again.',
+    })
+  }
+
+  if (storedToken.expiresAt.getTime() < Date.now()) {
+    storedToken.revokedAt = new Date()
+    await storedToken.save()
+
+    return res.status(401).json({
+      code: 'UNAUTHORIZED',
+      message: 'Refresh token is invalid or expired.',
+    })
+  }
+
+  const user = await User.findById(decoded.id)
+  if (!user) {
+    storedToken.revokedAt = new Date()
+    await storedToken.save()
+    return res.status(401).json({
+      code: 'UNAUTHORIZED',
+      message: 'User not found.',
+    })
+  }
+
+  const authPayload = await createAuthPayload(user, {
+    previousTokenRecord: storedToken,
+  })
+
+  res.json(authPayload)
+})
+
+export const logout = asyncHandler(async (req, res) => {
+  const payload = logoutSchema.parse(req.body || {})
+  await revokeRefreshTokenRecord(payload.refreshToken)
+  res.json({ message: 'Signed out successfully.' })
 })
 
 export const updateProfile = asyncHandler(async (req, res) => {
