@@ -8,6 +8,7 @@ import { connectSocket } from "../services/socketClient";
 import {
   clearAuthSession,
   getAccessToken,
+  getRefreshToken,
   getStoredUser,
   storeAuthSession,
 } from "../services/authStorage";
@@ -19,12 +20,13 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => getAccessToken());
   const [isBootstrapping, setIsBootstrapping] = useState(true);
 
-  const saveAuth = useCallback((nextUser, nextToken) => {
+  const saveAuth = useCallback((nextUser, nextToken, nextRefreshToken) => {
     setUser(nextUser);
     setToken(nextToken);
     storeAuthSession({
       user: nextUser,
       token: nextToken,
+      refreshToken: nextRefreshToken,
     });
   }, []);
 
@@ -35,6 +37,7 @@ export function AuthProvider({ children }) {
       storeAuthSession({
         user: nextUser,
         token: getAccessToken(),
+        refreshToken: getRefreshToken(),
       });
       return nextUser;
     });
@@ -42,13 +45,13 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (payload) => {
     const { data } = await api.post("/auth/login", payload);
-    saveAuth(data.user, data.token);
+    saveAuth(data.user, data.token, data.refreshToken);
     return data;
   }, [saveAuth]);
 
   const register = useCallback(async (payload) => {
     const { data } = await api.post("/auth/register", payload);
-    saveAuth(data.user, data.token);
+    saveAuth(data.user, data.token, data.refreshToken);
     return data;
   }, [saveAuth]);
 
@@ -106,9 +109,11 @@ export function AuthProvider({ children }) {
 
     const restoreSession = async () => {
       try {
-        const { data } = await api.post("/auth/refresh");
+        const { data } = await api.post("/auth/refresh", {
+          refreshToken: getRefreshToken(),
+        });
         if (!cancelled && data?.token) {
-          saveAuth(data.user || null, data.token);
+          saveAuth(data.user || null, data.token, data.refreshToken);
         }
       } catch {
         if (!cancelled) {

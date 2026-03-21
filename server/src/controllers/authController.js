@@ -99,7 +99,9 @@ const parseCookies = (cookieHeader = '') =>
   }, {})
 
 const getRefreshTokenFromRequest = (req) =>
-  parseCookies(req.headers.cookie || '')[REFRESH_COOKIE_NAME] || ''
+  req.body?.refreshToken ||
+  parseCookies(req.headers.cookie || '')[REFRESH_COOKIE_NAME] ||
+  ''
 
 const createAuthPayload = async (
   user,
@@ -128,6 +130,7 @@ const createAuthPayload = async (
   return {
     user: sanitizeUser(user),
     token: accessToken,
+    refreshToken,
   }
 }
 

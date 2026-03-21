@@ -2,31 +2,29 @@ import axios from "axios";
 import {
   clearAuthSession,
   getAccessToken,
+  getRefreshToken,
   storeAuthSession,
 } from "./authStorage";
 
 const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
-const apiOrigin = baseURL.replace(/\/api\/v1\/?$/, "");
 
 export const resolveImageUrl = (url) => {
   if (!url) return "";
-  if (url.startsWith("http") || url.startsWith("data:") || url.startsWith("blob:")) {
-    return url;
-  }
-  if (url.startsWith("/api")) {
-    return `${apiOrigin}${url}`;
-  }
-  return url;
+  if (url.startsWith("data:")) return url;
+  if (url.startsWith("http")) return url;
+  if (url.startsWith("blob:")) return url;
+  const base =
+    import.meta.env.VITE_API_URL?.replace("/api/v1", "") ||
+    "http://localhost:5000";
+  return `${base}${url.startsWith("/") ? "" : "/"}${url}`;
 };
 
 const api = axios.create({
   baseURL,
-  withCredentials: true,
 });
 
 const refreshClient = axios.create({
   baseURL,
-  withCredentials: true,
 });
 
 let authFailureHandler = null;
@@ -51,12 +49,39 @@ const shouldSkipRefresh = (url = "") =>
     "/auth/logout",
   ].some((path) => url.includes(path));
 
+const injectRefreshToken = (config = {}) => {
+  const url = config.url || "";
+  if (!["/auth/refresh", "/auth/logout"].some((path) => url.includes(path))) {
+    return config;
+  }
+
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    return config;
+  }
+
+  const data =
+    config.data && typeof config.data === "string"
+      ? JSON.parse(config.data)
+      : config.data || {};
+
+  if (!data.refreshToken) {
+    config.data = { ...data, refreshToken };
+  }
+
+  return config;
+};
+
 const refreshAccessToken = async () => {
-  const { data } = await refreshClient.post("/auth/refresh");
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) throw new Error("Missing refresh token");
+
+  const { data } = await refreshClient.post("/auth/refresh", { refreshToken });
 
   storeAuthSession({
     user: data?.user || null,
     token: data?.token || "",
+    refreshToken: data?.refreshToken || "",
   });
 
   if (typeof authSessionHandler === "function") {
@@ -74,8 +99,10 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  return config;
+  return injectRefreshToken(config);
 });
+
+refreshClient.interceptors.request.use((config) => injectRefreshToken(config));
 
 api.interceptors.response.use(
   (response) => response,
