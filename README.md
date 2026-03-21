@@ -45,7 +45,7 @@ The dashboard is intentionally CMS-like, so non-technical staff can manage produ
 - Order history grouped by day
 - Order editing before an order becomes `Ready` or `Completed`
 - Rewards and redemption history
-- Events browsing and registration
+- Public events browsing, with registration after sign-in
 - Gallery and interactive location page
 - Authentication with email OTP flows
 
@@ -63,6 +63,12 @@ The dashboard is intentionally CMS-like, so non-technical staff can manage produ
 - Socket.IO-based updates for orders and dashboard data
 - Live refreshes after order status changes
 - Real-time admin indicators for incoming orders and inventory warnings
+
+### SEO and Discoverability
+- Page-level metadata via `react-helmet-async`
+- Dynamic product and location metadata
+- Structured data for the restaurant and product detail pages
+- `robots.txt` in the frontend and a dynamic `/sitemap.xml` from the backend
 
 ## Visual Preview
 These images come from the current project assets and give a quick feel for the visual direction used in the app.
@@ -88,9 +94,11 @@ These are current app behaviors that are intentional right now:
 - Tailwind CSS
 - React Router
 - React Query
+- React Helmet Async
 - Axios
 - Socket.IO Client
 - Framer Motion
+- Vitest
 
 ### Backend
 - Node.js
@@ -104,6 +112,7 @@ These are current app behaviors that are intentional right now:
 - Multer
 - bcryptjs
 - JWT
+- Vitest
 
 ## Repository Structure
 ```text
@@ -114,8 +123,9 @@ coffeshop_web_app/
 |  |  |- components/           # shared and feature UI
 |  |  |- context/              # auth, cart, theme providers
 |  |  |- hooks/                # reusable hooks
-|  |  |- pages/                # route-level screens
+|  |  |- pages/                # route-level screens + AdminDashboard tab modules
 |  |  |- services/             # API client config
+|  |  |- test/                 # frontend tests and setup
 |  |  |- utils/                # pricing, inventory, sessions, helpers
 |  |  |- App.jsx               # app routes
 |  |  \- main.jsx              # frontend entry point
@@ -196,7 +206,7 @@ http://localhost:5173
 | `REFRESH_TOKEN_SECRET` | Optional | Separate secret for refresh tokens; falls back to `JWT_SECRET` if omitted |
 | `ACCESS_TOKEN_TTL` | Optional | Access token lifetime, default `15m` |
 | `REFRESH_TOKEN_TTL` | Optional | Refresh token lifetime, default `30d` |
-| `CLIENT_ORIGIN` | Yes | Frontend origin for CORS and sockets |
+| `CLIENT_ORIGIN` | Yes | Frontend origin for CORS, sockets, cookies, and sitemap base URLs |
 | `BREVO_API_KEY` | Optional / required for real email OTP | Brevo transactional email API key |
 | `BREVO_SENDER_EMAIL` | Optional / required for real email OTP | Verified Brevo sender email |
 | `BREVO_SENDER_NAME` | Optional | Sender name shown in email OTP messages |
@@ -244,6 +254,7 @@ Staff access is permission-based. Admin can grant specific permissions such as:
 - Sign in and registration happen on `/sign-in`
 - Registration and password reset use email OTP
 - Successful customer sign-in redirects to the Home page
+- Access tokens live in memory on the client; refresh tokens rotate through an `httpOnly` cookie
 
 ### Orders
 - Checkout creates an order and redirects to `/orders`
@@ -259,9 +270,17 @@ Staff access is permission-based. Admin can grant specific permissions such as:
 - Home page media is managed in the admin dashboard
 - Home menu highlights are selected from the live `Menu` picker
 
+### SEO
+- Home, Menu, Product Detail, Events, and Location pages set route-specific titles and descriptions
+- Home includes `Restaurant` JSON-LD
+- Product detail includes `Product` JSON-LD
+- The backend serves `/sitemap.xml` for static pages plus active products and events
+- `client/public/robots.txt` blocks `/admin` and `/sign-in`
+
 ## API Overview
 These are the main API groups:
 - `/api/health`
+- `/sitemap.xml`
 - `/api/v1/auth`
 - `/api/v1/orders`
 - `/api/v1/reviews`
@@ -280,6 +299,7 @@ These are the main API groups:
 - `POST /api/v1/orders` -> create order
 - `PATCH /api/v1/orders/:id` -> edit an existing order
 - `PATCH /api/v1/orders/:id/status` -> admin updates order status
+- `GET /api/v1/products/:id/image` -> product image binary response
 - `PUT /api/v1/admin/settings` -> update home media and settings
 
 ## API Examples
@@ -402,6 +422,7 @@ Fix options:
 - Only `.env.example` files should be tracked
 - Set production-safe values for all backend and frontend environment variables
 - Make sure `CLIENT_ORIGIN` matches the deployed frontend domain
+- If the frontend and backend are on different domains, expose `/sitemap.xml` from the public site domain or proxy it there
 - Replace local MongoDB values with production MongoDB values
 - Add a real payment gateway before re-enabling online card payment
 

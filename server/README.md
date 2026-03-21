@@ -111,6 +111,7 @@ GET /api/health
 ```
 
 ## Main Route Groups
+- `/sitemap.xml`
 - `/api/v1/auth`
 - `/api/v1/orders`
 - `/api/v1/reviews`
@@ -140,6 +141,13 @@ curl -X POST http://localhost:5000/api/v1/auth/login \
   -d "{\"email\":\"user@example.com\",\"password\":\"strongpass123\"}"
 ```
 
+### Refresh an access token
+```bash
+curl -X POST http://localhost:5000/api/v1/auth/refresh \
+  -H "Content-Type: application/json" \
+  --cookie "cortina_refresh_token=YOUR_REFRESH_COOKIE"
+```
+
 ### Create an order
 ```bash
 curl -X POST http://localhost:5000/api/v1/orders \
@@ -164,10 +172,17 @@ curl -X PATCH http://localhost:5000/api/v1/admin/staff/STAFF_ID \
   -d "{\"role\":\"Staff\",\"permissions\":[\"manageOrders\",\"manageEvents\"],\"password\":\"newstrongpass123\"}"
 ```
 
+### Sitemap
+```bash
+curl http://localhost:5000/sitemap.xml
+```
+
 ## Important Server Behaviors
 ### Authentication
 - JWT-based auth
 - short-lived access tokens plus rotating refresh tokens
+- refresh tokens are delivered as `httpOnly` cookies
+- access token payloads include role + permissions to reduce repeat DB lookups on normal requests
 - Profile endpoints for the authenticated user
 - Email OTP for registration and password reset
 
@@ -175,6 +190,7 @@ curl -X PATCH http://localhost:5000/api/v1/admin/staff/STAFF_ID \
 - Orders are created from cart items and optional reward redemptions
 - Realtime events are emitted when orders are created, updated, cancelled, or completed
 - Users can edit eligible orders until they reach non-editable states
+- List endpoints support pagination with `?page=1&limit=20`
 
 ### Inventory
 - Inventory is enforced at order creation and order editing time
@@ -186,6 +202,12 @@ curl -X PATCH http://localhost:5000/api/v1/admin/staff/STAFF_ID \
 - Reward redemptions are tied to user accounts
 - Redeemed rewards can be applied during checkout
 - Applied rewards are restored if the order fails or is cancelled in eligible states
+- Reward redemption uses an atomic balance update to avoid double-spend races
+
+### SEO and Media
+- `/sitemap.xml` is generated dynamically from static pages, active products, and active events
+- Product list endpoints omit image blobs; `GET /api/v1/products/:id/image` returns product media separately
+- The sitemap base URL is derived from `CLIENT_ORIGIN` when available
 
 ### Staff and Admin
 - Admin can create or update staff accounts
@@ -201,12 +223,19 @@ Socket.IO events are used for:
 - `settings:changed`
 - `staff:changed`
 
+Delivery is room-based:
+- `admin` for staff/admin listeners
+- `user:<id>` for user-specific events
+- `public` for public-facing realtime refreshes
+
 ## Security and Validation Notes
 - Input validation is done with Zod in `server/src/validators`
 - Passwords are hashed with bcryptjs
 - Protected routes use bearer token auth
 - Role and permission middleware protect admin routes
 - Rate limiting and Helmet are enabled in the app
+- Login and OTP request routes use a stricter auth-specific rate limiter
+- Admin uploads only accept validated image MIME types (`jpeg`, `png`, `webp`)
 
 ## Seed Behavior
 Seeding only runs when:
@@ -230,6 +259,7 @@ If `ADMIN_EMAIL` and `ADMIN_PASSWORD` are set, the server can create or promote 
 - `server/src/controllers/staffController.js`
 - `server/src/routes/adminRoutes.js`
 - `server/src/routes/authRoutes.js`
+- `server/src/routes/seoRoutes.js`
 - `server/src/models/Order.js`
 - `server/src/models/Product.js`
 - `server/src/validators/order.js`
@@ -254,6 +284,13 @@ Check:
 - socket server is running
 - `CLIENT_ORIGIN` matches the frontend origin
 - frontend `VITE_SOCKET_URL` matches this backend
+- the socket handshake includes `role` and `userId` so the server can join the right room
+
+### Sitemap looks wrong
+Check:
+- `CLIENT_ORIGIN` points to the public frontend origin
+- active products/events exist in the database
+- the backend was restarted after SEO route changes
 
 ### Orders fail unexpectedly
 Check:
