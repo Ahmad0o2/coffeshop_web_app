@@ -1,6 +1,7 @@
 import Event from '../models/Event.js'
 import EventRegistration from '../models/EventRegistration.js'
 import asyncHandler from '../utils/asyncHandler.js'
+import { buildPaginatedResponse, parsePagination } from '../utils/pagination.js'
 import { eventSchema, eventRegisterSchema } from '../validators/event.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
 
@@ -36,8 +37,14 @@ export const getEvents = asyncHandler(async (req, res) => {
 })
 
 export const getAdminEvents = asyncHandler(async (req, res) => {
-  const events = await Event.find().sort({ startDateTime: 1 })
-  res.json({ events: await attachRegistrationCounts(events) })
+  const { page, limit, skip } = parsePagination(req.query, {
+    defaultLimit: 20,
+    maxLimit: 100,
+  })
+  const total = await Event.countDocuments()
+  const events = await Event.find().sort({ startDateTime: 1 }).skip(skip).limit(limit)
+  const mappedEvents = await attachRegistrationCounts(events)
+  res.json(buildPaginatedResponse(mappedEvents, total, page, limit, 'events'))
 })
 
 export const getEvent = asyncHandler(async (req, res) => {

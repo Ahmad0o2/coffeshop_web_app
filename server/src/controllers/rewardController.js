@@ -3,6 +3,7 @@ import RewardRedemption from '../models/RewardRedemption.js'
 import Product from '../models/Product.js'
 import User from '../models/User.js'
 import asyncHandler from '../utils/asyncHandler.js'
+import { buildPaginatedResponse, parsePagination } from '../utils/pagination.js'
 import { redeemSchema, rewardSchema } from '../validators/reward.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
 
@@ -45,10 +46,18 @@ export const getRewards = asyncHandler(async (req, res) => {
 })
 
 export const getAdminRewards = asyncHandler(async (_req, res) => {
+  const { page, limit, skip } = parsePagination(_req.query, {
+    defaultLimit: 20,
+    maxLimit: 100,
+  })
+  const total = await Reward.countDocuments()
   const rewards = await Reward.find()
     .populate('productId')
     .sort({ pointsRequired: 1, createdAt: -1 })
-  res.json({ rewards: rewards.map(mapReward) })
+    .skip(skip)
+    .limit(limit)
+  const mappedRewards = rewards.map(mapReward)
+  res.json(buildPaginatedResponse(mappedRewards, total, page, limit, 'rewards'))
 })
 
 export const createReward = asyncHandler(async (req, res) => {
@@ -123,19 +132,25 @@ export const redeemReward = asyncHandler(async (req, res) => {
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Reward not found' })
   }
 
-  const user = await User.findById(req.user._id)
-  if (!user) {
-    return res.status(404).json({ code: 'NOT_FOUND', message: 'User not found' })
-  }
+  const user = await User.findOneAndUpdate(
+    {
+      _id: req.user._id,
+      loyaltyPoints: { $gte: reward.pointsRequired },
+    },
+    { $inc: { loyaltyPoints: -reward.pointsRequired } },
+    { new: true, select: '_id loyaltyPoints' }
+  )
 
-  if (user.loyaltyPoints < reward.pointsRequired) {
+  if (!user) {
+    const userExists = await User.exists({ _id: req.user._id })
+    if (!userExists) {
+      return res.status(404).json({ code: 'NOT_FOUND', message: 'User not found' })
+    }
+
     return res
       .status(400)
       .json({ code: 'INSUFFICIENT_POINTS', message: 'Not enough points' })
   }
-
-  user.loyaltyPoints -= reward.pointsRequired
-  await user.save()
 
   const redemption = await RewardRedemption.create({
     userId: user._id,

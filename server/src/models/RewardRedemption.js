@@ -24,6 +24,9 @@ const rewardRedemptionSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+rewardRedemptionSchema.index({ userId: 1, status: 1 })
+rewardRedemptionSchema.index({ orderId: 1 })
+
 const RewardRedemption = mongoose.model(
   'RewardRedemption',
   rewardRedemptionSchema

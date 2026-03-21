@@ -21,28 +21,28 @@ import { buildSocketConnectionOptions } from "../utils/socketAuth";
 import { cn } from "../lib/utils";
 
 const fetchOrders = async () => {
-  const { data } = await api.get("/orders");
-  return data.orders || [];
+  const { data } = await api.get("/orders?page=1&limit=200");
+  return data.data || data.orders || [];
 };
 
 const fetchProducts = async () => {
-  const { data } = await api.get("/products");
-  return data.products || [];
+  const { data } = await api.get("/products?page=1&limit=100");
+  return data.data || data.products || [];
 };
 
 const fetchCategories = async () => {
-  const { data } = await api.get("/categories");
-  return data.categories || [];
+  const { data } = await api.get("/categories?page=1&limit=100");
+  return data.data || data.categories || [];
 };
 
 const fetchAdminEvents = async () => {
-  const { data } = await api.get("/admin/events");
-  return data.events || [];
+  const { data } = await api.get("/admin/events?page=1&limit=100");
+  return data.data || data.events || [];
 };
 
 const fetchAdminRewards = async () => {
-  const { data } = await api.get("/admin/rewards");
-  return data.rewards || [];
+  const { data } = await api.get("/admin/rewards?page=1&limit=100");
+  return data.data || data.rewards || [];
 };
 
 const fetchStaff = async () => {

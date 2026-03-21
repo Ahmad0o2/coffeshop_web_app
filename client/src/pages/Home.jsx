@@ -22,8 +22,8 @@ const fetchEvents = async () => {
 };
 
 const fetchProducts = async () => {
-  const { data } = await api.get("/products");
-  return data.products || [];
+  const { data } = await api.get("/products?page=1&limit=100");
+  return data.data || data.products || [];
 };
 
 const formatEventDate = (value) => {

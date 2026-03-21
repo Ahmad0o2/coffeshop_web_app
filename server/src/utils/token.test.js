@@ -19,11 +19,17 @@ describe('token utils', () => {
   })
 
   it('creates and verifies an access token', () => {
-    const token = generateAccessToken('user-123')
+    const token = generateAccessToken({
+      _id: 'user-123',
+      role: 'Staff',
+      permissions: ['manageOrders', 'manageProducts'],
+    })
     const decoded = verifyAccessToken(token)
 
     expect(decoded.id).toBe('user-123')
     expect(decoded.type).toBe('access')
+    expect(decoded.role).toBe('Staff')
+    expect(decoded.permissions).toEqual(['manageOrders', 'manageProducts'])
   })
 
   it('creates and verifies a refresh token with token id', () => {

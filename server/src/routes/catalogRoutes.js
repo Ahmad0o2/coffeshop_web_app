@@ -2,6 +2,7 @@ import express from 'express'
 import {
   getCategories,
   getCategory,
+  getProductImage,
   getProduct,
   getProducts,
 } from '../controllers/catalogController.js'
@@ -12,6 +13,7 @@ const router = express.Router()
 router.get('/categories', getCategories)
 router.get('/categories/:id', getCategory)
 router.get('/products', getProducts)
+router.get('/products/:id/image', getProductImage)
 router.get('/products/:id', getProduct)
 router.get('/settings', getSettings)
 

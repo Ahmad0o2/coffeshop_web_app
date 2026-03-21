@@ -20,13 +20,13 @@ import {
 import { useLocation, useNavigate } from "react-router-dom";
 
 const fetchCategories = async () => {
-  const { data } = await api.get("/categories");
-  return data.categories || [];
+  const { data } = await api.get("/categories?page=1&limit=100");
+  return data.data || data.categories || [];
 };
 
 const fetchProducts = async () => {
-  const { data } = await api.get("/products");
-  return data.products || [];
+  const { data } = await api.get("/products?page=1&limit=100");
+  return data.data || data.products || [];
 };
 
 const areHomeHighlightsEqual = (first, second) =>

@@ -496,9 +496,9 @@ export default function Profile() {
   const loadOrders = useCallback(() => {
     setLoadingOrders(true);
     api
-      .get("/orders")
+      .get("/orders?page=1&limit=200")
       .then((response) => {
-        setOrders(response.data.orders || []);
+        setOrders(response.data.data || response.data.orders || []);
       })
       .catch((err) => {
         setError(getApiErrorMessage(err, "Failed to load orders."));

@@ -22,8 +22,8 @@ const fetchRewardHistory = async () => {
   return data.redemptions || [];
 };
 const fetchAdminOrders = async () => {
-  const { data } = await api.get("/orders");
-  return data.orders || [];
+  const { data } = await api.get("/orders?page=1&limit=200");
+  return data.data || data.orders || [];
 };
 const defaultLogoSrc = "/brand_logo.webp";
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";

@@ -107,7 +107,7 @@ const createAuthPayload = async (
   { previousTokenRecord = null } = {}
 ) => {
   const tokenId = createRefreshTokenId()
-  const accessToken = generateAccessToken(user._id)
+  const accessToken = generateAccessToken(user)
   const refreshToken = generateRefreshToken(user._id, tokenId)
 
   await RefreshToken.create({

@@ -1,15 +1,19 @@
 import Category from '../models/Category.js'
 import Product from '../models/Product.js'
 import asyncHandler from '../utils/asyncHandler.js'
+import { buildPaginatedResponse, parsePagination } from '../utils/pagination.js'
 import { categorySchema } from '../validators/catalog.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
 
-const buildImageUrl = (product) => {
+const buildInlineImageUrl = (product) => {
   if (product?.image?.data && product?.image?.contentType) {
     return `data:${product.image.contentType};base64,${product.image.data}`
   }
   return product.imageUrl || ''
 }
+
+const buildProductImageRoute = (product) =>
+  product?._id ? `/api/v1/products/${String(product._id)}/image` : ''
 
 const parseList = (value) => {
   if (!value) return []
@@ -95,7 +99,7 @@ const getInventoryQuantity = (product) =>
     ? product.inventoryQuantity
     : null
 
-const mapProduct = (product) => {
+const mapProduct = (product, { includeInlineImage = false } = {}) => {
   const inventoryQuantity = getInventoryQuantity(product)
   const lowStockThreshold =
     Number.isInteger(product?.lowStockThreshold) && product.lowStockThreshold >= 0
@@ -104,7 +108,9 @@ const mapProduct = (product) => {
 
   return {
     ...product.toObject(),
-    imageUrl: buildImageUrl(product),
+    imageUrl: includeInlineImage
+      ? buildInlineImageUrl(product)
+      : buildProductImageRoute(product),
     sizePrices: buildSizePrices(product),
     inventoryQuantity,
     lowStockThreshold,
@@ -119,8 +125,13 @@ const mapProduct = (product) => {
 }
 
 export const getCategories = asyncHandler(async (req, res) => {
-  const categories = await Category.find().sort({ name: 1 })
-  res.json({ categories })
+  const { page, limit, skip } = parsePagination(req.query, {
+    defaultLimit: 20,
+    maxLimit: 100,
+  })
+  const total = await Category.countDocuments()
+  const categories = await Category.find().sort({ name: 1 }).skip(skip).limit(limit)
+  res.json(buildPaginatedResponse(categories, total, page, limit, 'categories'))
 })
 
 export const getCategory = asyncHandler(async (req, res) => {
@@ -203,6 +214,10 @@ export const deleteCategory = asyncHandler(async (req, res) => {
 
 export const getProducts = asyncHandler(async (req, res) => {
   const { categoryId, search, minPrice, maxPrice } = req.query
+  const { page, limit, skip } = parsePagination(req.query, {
+    defaultLimit: 20,
+    maxLimit: 100,
+  })
   const query = {}
 
   if (categoryId) query.categoryId = categoryId
@@ -213,8 +228,15 @@ export const getProducts = asyncHandler(async (req, res) => {
     if (maxPrice) query.price.$lte = Number(maxPrice)
   }
 
-  const products = await Product.find(query).sort({ createdAt: -1 })
-  res.json({ products: products.map(mapProduct) })
+  const total = await Product.countDocuments(query)
+  const products = await Product.find(query)
+    .select('-image')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+
+  const mappedProducts = products.map((product) => mapProduct(product))
+  res.json(buildPaginatedResponse(mappedProducts, total, page, limit, 'products'))
 })
 
 export const getProduct = asyncHandler(async (req, res) => {
@@ -222,7 +244,23 @@ export const getProduct = asyncHandler(async (req, res) => {
   if (!product) {
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Product not found' })
   }
-  res.json({ product: mapProduct(product) })
+  res.json({ product: mapProduct(product, { includeInlineImage: true }) })
+})
+
+export const getProductImage = asyncHandler(async (req, res) => {
+  const product = await Product.findById(req.params.id).select('image name')
+
+  if (!product) {
+    return res.status(404).json({ code: 'NOT_FOUND', message: 'Product not found' })
+  }
+
+  if (!product.image?.data || !product.image?.contentType) {
+    return res.status(404).json({ code: 'NOT_FOUND', message: 'Product image not found' })
+  }
+
+  res.set('Cache-Control', 'public, max-age=300')
+  res.contentType(product.image.contentType)
+  res.send(Buffer.from(product.image.data, 'base64'))
 })
 
 export const createProduct = asyncHandler(async (req, res) => {
@@ -259,9 +297,9 @@ export const createProduct = asyncHandler(async (req, res) => {
     entity: 'product',
     action: 'created',
     entityId: String(product._id),
-    product: mapProduct(product),
+    product: mapProduct(product, { includeInlineImage: true }),
   })
-  res.status(201).json({ product: mapProduct(product) })
+  res.status(201).json({ product: mapProduct(product, { includeInlineImage: true }) })
 })
 
 export const updateProduct = asyncHandler(async (req, res) => {
@@ -315,9 +353,9 @@ export const updateProduct = asyncHandler(async (req, res) => {
     entity: 'product',
     action: 'updated',
     entityId: String(product._id),
-    product: mapProduct(product),
+    product: mapProduct(product, { includeInlineImage: true }),
   })
-  res.json({ product: mapProduct(product) })
+  res.json({ product: mapProduct(product, { includeInlineImage: true }) })
 })
 
 export const deleteProduct = asyncHandler(async (req, res) => {

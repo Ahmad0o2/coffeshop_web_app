@@ -8,6 +8,7 @@ import {
   orderFeedbackSchema,
   updateOrderSchema,
 } from '../validators/order.js'
+import { buildPaginatedResponse, parsePagination } from '../utils/pagination.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
 
 const buildProductImageUrl = (product) => {
@@ -378,14 +379,24 @@ export const createOrder = asyncHandler(async (req, res) => {
 export const getOrders = asyncHandler(async (req, res) => {
   const canManageOrders = canManageOrdersForUser(req.user)
   const filter = canManageOrders ? {} : { userId: req.user._id }
-  let query = Order.find(filter).populate('items.productId').sort({ createdAt: -1 })
+  const { page, limit, skip } = parsePagination(req.query, {
+    defaultLimit: 20,
+    maxLimit: 200,
+  })
+  const total = await Order.countDocuments(filter)
+  let query = Order.find(filter)
+    .populate('items.productId')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
 
   if (canManageOrders) {
     query = query.populate('userId', 'fullName phone email')
   }
 
   const orders = await query
-  res.json({ orders: orders.map(mapOrder) })
+  const mappedOrders = orders.map(mapOrder)
+  res.json(buildPaginatedResponse(mappedOrders, total, page, limit, 'orders'))
 })
 
 export const getOrderById = asyncHandler(async (req, res) => {
