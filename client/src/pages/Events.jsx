@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Navigate } from 'react-router-dom'
+import { Helmet } from 'react-helmet-async'
 import EventCard from '../components/events/EventCard'
 import api from '../services/api'
 import useAuth from '../hooks/useAuth'
@@ -37,7 +37,6 @@ export default function Events() {
   const { data: events = [], isLoading, refetch: refetchEvents } = useQuery({
     queryKey: ['events'],
     queryFn: fetchEvents,
-    enabled: isAuthenticated,
   })
   const { data: myRegistrationIds = [], refetch: refetchMyRegistrations } = useQuery({
     queryKey: ['my-event-registrations'],
@@ -117,39 +116,49 @@ export default function Events() {
     }
   }
 
-  if (!isAuthenticated) {
-    return <Navigate to="/sign-in" replace state={{ redirectTo: "/events" }} />
-  }
-
   if (isLoading) {
     return <PageHeroSkeleton cards={4} />
   }
 
   return (
-    <section className="section-shell">
-      <h1 className="text-3xl font-semibold text-espresso">Events</h1>
-      <p className="mt-2 text-sm text-cocoa/70">
-        Campus nights, latte art, and study jams.
-      </p>
-      {eventMessage && (
-        <div className="mt-4 rounded-xl2 border border-gold/20 bg-caramel/10 p-4 text-sm text-espresso">
-          {eventMessage}
+    <>
+      <Helmet>
+        <title>Events — Cortina.D</title>
+        <meta
+          name="description"
+          content="See upcoming Cortina.D events, community nights, and specialty coffee experiences."
+        />
+        <meta property="og:title" content="Events — Cortina.D" />
+        <meta
+          property="og:description"
+          content="Explore upcoming Cortina.D events, registrations, and featured experiences."
+        />
+      </Helmet>
+      <section className="section-shell">
+        <h1 className="text-3xl font-semibold text-espresso">Events</h1>
+        <p className="mt-2 text-sm text-cocoa/70">
+          Campus nights, latte art, and study jams.
+        </p>
+        {eventMessage && (
+          <div className="mt-4 rounded-xl2 border border-gold/20 bg-caramel/10 p-4 text-sm text-espresso">
+            {eventMessage}
+          </div>
+        )}
+        {eventError && <p className="form-error mt-4">{eventError}</p>}
+        <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {events.map((event) => (
+            <EventCard
+              key={event._id}
+              event={event}
+              onRegister={handleRegister}
+              onUnregister={handleUnregister}
+              isRegistered={myRegistrationIds.includes(event._id)}
+              isAuthenticated={isAuthenticated}
+              isLoading={loadingEventId === event._id}
+            />
+          ))}
         </div>
-      )}
-      {eventError && <p className="form-error mt-4">{eventError}</p>}
-      <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {events.map((event) => (
-          <EventCard
-            key={event._id}
-            event={event}
-            onRegister={handleRegister}
-            onUnregister={handleUnregister}
-            isRegistered={myRegistrationIds.includes(event._id)}
-            isAuthenticated={isAuthenticated}
-            isLoading={loadingEventId === event._id}
-          />
-        ))}
-      </div>
-    </section>
+      </section>
+    </>
   )
 }

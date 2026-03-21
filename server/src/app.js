@@ -10,6 +10,7 @@ import reviewRoutes from './routes/reviewRoutes.js'
 import rewardRoutes from './routes/rewardRoutes.js'
 import eventRoutes from './routes/eventRoutes.js'
 import adminRoutes from './routes/adminRoutes.js'
+import seoRoutes from './routes/seoRoutes.js'
 import { errorHandler, notFound } from './middleware/error.js'
 
 const app = express()
@@ -64,6 +65,7 @@ app.get('/', (req, res) => {
   res.json({ status: 'ok', name: 'Cortina.D API' })
 })
 
+app.use('/', seoRoutes)
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1', catalogRoutes)
 app.use('/api/v1/orders', orderRoutes)

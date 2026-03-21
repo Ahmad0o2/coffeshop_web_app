@@ -1,4 +1,5 @@
 import useTheme from "../hooks/useTheme";
+import { Helmet } from "react-helmet-async";
 import { MapPinIcon, SparkIcon } from "../components/common/Icons";
 import { Button } from "../components/ui/button";
 import { WorldMap } from "../components/ui/map";
@@ -25,23 +26,36 @@ export default function Location() {
   ];
 
   return (
-    <section className="section-shell">
-      <div className="card p-3.5 sm:p-8">
-        <div className="grid gap-3.5 sm:gap-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
-          <div>
-            <div className="mb-3.5 space-y-1.5 sm:mb-7 sm:space-y-3">
-              <div className="flex items-center gap-1.5 text-[0.58rem] uppercase tracking-[0.22em] text-cocoa/60 sm:text-xs sm:tracking-[0.3em]">
-                <MapPinIcon className="h-3.5 w-3.5 text-gold sm:h-4 sm:w-4" />
-                Location
+    <>
+      <Helmet>
+        <title>Find Us — Cortina.D</title>
+        <meta
+          name="description"
+          content="Find Cortina.D Coffee House on Uni Street in Irbid, Jordan, with an interactive map and opening hours."
+        />
+        <meta property="og:title" content="Find Us — Cortina.D" />
+        <meta
+          property="og:description"
+          content="Locate Cortina.D Coffee House in Irbid and open directions directly in Google Maps."
+        />
+      </Helmet>
+      <section className="section-shell">
+        <div className="card p-3.5 sm:p-8">
+          <div className="grid gap-3.5 sm:gap-6 lg:grid-cols-[0.92fr_1.08fr] lg:items-start">
+            <div>
+              <div className="mb-3.5 space-y-1.5 sm:mb-7 sm:space-y-3">
+                <div className="flex items-center gap-1.5 text-[0.58rem] uppercase tracking-[0.22em] text-cocoa/60 sm:text-xs sm:tracking-[0.3em]">
+                  <MapPinIcon className="h-3.5 w-3.5 text-gold sm:h-4 sm:w-4" />
+                  Location
+                </div>
+                <h1 className="text-[1.42rem] font-semibold text-espresso sm:text-4xl">
+                  Find Cortina.D quickly
+                </h1>
+                <p className="text-[0.76rem] leading-[1.15rem] text-cocoa/70 sm:text-sm sm:leading-6">
+                  The map is interactive. Press on the pulsing dot and the cafe
+                  location opens directly in Google Maps.
+                </p>
               </div>
-              <h1 className="text-[1.42rem] font-semibold text-espresso sm:text-4xl">
-                Find Cortina.D quickly
-              </h1>
-              <p className="text-[0.76rem] leading-[1.15rem] text-cocoa/70 sm:text-sm sm:leading-6">
-                The map is interactive. Press on the pulsing dot and the cafe
-                location opens directly in Google Maps.
-              </p>
-            </div>
 
             <div className="space-y-2 text-[0.76rem] sm:space-y-3 sm:text-sm">
               <div className="rounded-xl2 border border-gold/20 bg-obsidian/40 p-2.5 sm:p-4">
@@ -107,7 +121,8 @@ export default function Location() {
             </div>
           </div>
         </div>
-      </div>
-    </section>
+        </div>
+      </section>
+    </>
   );
 }

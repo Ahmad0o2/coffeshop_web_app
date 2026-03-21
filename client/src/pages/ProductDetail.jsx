@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { Helmet } from 'react-helmet-async'
 import api from '../services/api'
 import useCart from '../hooks/useCart'
 import useAuth from '../hooks/useAuth'
@@ -86,6 +87,37 @@ export default function ProductDetail() {
   const canOrder = canOrderProduct(product)
   const isLowStock = isProductLowStock(product)
   const isDayTheme = theme === 'day'
+  const siteOrigin =
+    typeof window !== 'undefined' ? window.location.origin : ''
+  const productImageUrl = product.imageUrl
+    ? product.imageUrl.startsWith('data:')
+      ? siteOrigin
+        ? `${siteOrigin}/api/v1/products/${product._id}/image`
+        : product.imageUrl
+      : product.imageUrl.startsWith('http')
+      ? product.imageUrl
+      : siteOrigin
+      ? new URL(product.imageUrl, siteOrigin).toString()
+      : product.imageUrl
+    : ''
+  const productMetaDescription =
+    product.description || `Discover ${product.name} at Cortina.D Coffee House.`
+  const productSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    description: productMetaDescription,
+    image: productImageUrl || undefined,
+    offers: {
+      '@type': 'Offer',
+      priceCurrency: 'JOD',
+      price: unitPrice.toFixed(2),
+      availability: canOrder
+        ? 'https://schema.org/InStock'
+        : 'https://schema.org/OutOfStock',
+      url: siteOrigin ? `${siteOrigin}/menu/${product._id}` : `/menu/${product._id}`,
+    },
+  }
   const orderEditBannerClass = cn(
     'flex flex-wrap items-center justify-between gap-3 rounded-[1.35rem] border px-5 py-4 shadow-[0_18px_34px_rgba(19,14,12,0.14)]',
     isDayTheme
@@ -164,7 +196,18 @@ export default function ProductDetail() {
   }
 
   return (
-    <section className="section-shell max-w-4xl">
+    <>
+      <Helmet>
+        <title>{`${product.name} — Cortina.D`}</title>
+        <meta name="description" content={productMetaDescription} />
+        <meta property="og:title" content={`${product.name} — Cortina.D`} />
+        <meta property="og:description" content={productMetaDescription} />
+        <meta property="og:type" content="product" />
+        {productImageUrl ? <meta property="og:image" content={productImageUrl} /> : null}
+        <script type="application/ld+json">{JSON.stringify(productSchema)}</script>
+      </Helmet>
+
+      <section className="section-shell max-w-4xl">
       {activeOrderEditSession?.orderId && (
         <div className="sticky top-24 z-20 mb-6 pt-2">
           <div className={orderEditBannerClass}>
@@ -286,6 +329,7 @@ export default function ProductDetail() {
           </Button>
         </div>
       </div>
-    </section>
+      </section>
+    </>
   )
 }

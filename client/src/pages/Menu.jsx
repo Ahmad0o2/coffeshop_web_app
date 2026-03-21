@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Helmet } from "react-helmet-async";
 import api from "../services/api";
 import ProductCard from "../components/menu/ProductCard";
 import useCart from "../hooks/useCart";
@@ -362,7 +363,20 @@ export default function Menu() {
   }
 
   return (
-    <section className="section-shell">
+    <>
+      <Helmet>
+        <title>Our Menu — Cortina.D</title>
+        <meta
+          name="description"
+          content="Explore the Cortina.D menu with signature coffee, refined blends, and premium add-ons curated for every mood."
+        />
+        <meta property="og:title" content="Our Menu — Cortina.D" />
+        <meta
+          property="og:description"
+          content="Browse the Cortina.D menu, today's special, and curated favorites."
+        />
+      </Helmet>
+      <section className="section-shell">
       {isAdminHomePicker && (
         <div className="sticky top-24 z-20 mb-6 pt-2">
           <div className={adminPickerBannerClass}>
@@ -642,6 +656,7 @@ export default function Menu() {
           </div>
         </div>
       </div>
-    </section>
+      </section>
+    </>
   );
 }

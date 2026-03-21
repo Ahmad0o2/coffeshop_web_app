@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Helmet } from "react-helmet-async";
 import useAuth from "../hooks/useAuth";
 import useSettings from "../hooks/useSettings";
 import useRealtimeInvalidation from "../hooks/useRealtimeInvalidation";
@@ -128,6 +129,39 @@ export default function Home() {
   const specialDisplayPrice = todaysSpecial
     ? getDisplayPrice(todaysSpecial)
     : { price: 0, isFrom: false };
+  const siteOrigin =
+    typeof window !== "undefined" ? window.location.origin : "";
+  const restaurantSchema = {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    name: "Cortina.D Coffee House",
+    url: siteOrigin ? `${siteOrigin}/` : "/",
+    image:
+      heroImage || (siteOrigin ? `${siteOrigin}/brand_logo.webp` : "/brand_logo.webp"),
+    servesCuisine: ["Coffee", "Cafe", "Desserts"],
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "Uni Street",
+      addressLocality: "Irbid",
+      addressCountry: "JO",
+    },
+    openingHoursSpecification: [
+      {
+        "@type": "OpeningHoursSpecification",
+        dayOfWeek: [
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+          "Sunday",
+        ],
+        opens: "09:00",
+        closes: "00:00",
+      },
+    ],
+  };
 
   const greeting = isAuthenticated ? getGreeting(user?.fullName) : "";
   const isDayTheme = theme === "day";
@@ -298,6 +332,24 @@ export default function Home() {
 
   return (
     <>
+      <Helmet>
+        <title>Cortina.D Coffee House</title>
+        <meta
+          name="description"
+          content="Discover Cortina.D Coffee House in Irbid: signature drinks, featured menu picks, rewards, events, and a refined coffee house experience."
+        />
+        <meta property="og:title" content="Cortina.D Coffee House" />
+        <meta
+          property="og:description"
+          content="Signature coffee, featured specials, rewards, and events from Cortina.D Coffee House."
+        />
+        <meta property="og:type" content="website" />
+        {heroImage ? <meta property="og:image" content={heroImage} /> : null}
+        <script type="application/ld+json">
+          {JSON.stringify(restaurantSchema)}
+        </script>
+      </Helmet>
+
       <section className="relative overflow-hidden">
         {heroImage && <div className={heroImageClass} style={heroImageStyle} />}
         <div
