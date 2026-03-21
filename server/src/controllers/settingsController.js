@@ -14,6 +14,20 @@ const SETTINGS_METADATA_SELECT = [
   'featuredProductIds',
   'updatedAt',
 ].join(' ')
+const SETTINGS_ASSET_SELECT = [
+  'logo',
+  'heroImage',
+  'spaceGalleryImages',
+  'homeDisplayImages',
+  'galleryImages',
+  'updatedAt',
+].join(' ')
+
+const settingsAssetCache = {
+  version: '',
+  assets: new Map(),
+  warmPromise: null,
+}
 
 const getOrCreateSettings = async () => {
   let settings = await SiteSettings.findOne()
@@ -24,36 +38,82 @@ const getOrCreateSettings = async () => {
 }
 
 const buildImageUrl = (path, image) =>
-  image?.data && image?.contentType
+  image?.contentType
     ? `${API_BASE_URL}/api/v1/settings/image/${path}`
     : ''
 
+const buildSettingsVersion = (settings) =>
+  settings?.updatedAt ? new Date(settings.updatedAt).toISOString() : ''
+
+const cacheSettingsAsset = (key, image) => {
+  if (!image?.data || !image?.contentType) return
+
+  settingsAssetCache.assets.set(key, {
+    buffer: Buffer.from(image.data, 'base64'),
+    contentType: image.contentType,
+  })
+}
+
+const primeSettingsAssetCache = (settings) => {
+  settingsAssetCache.version = buildSettingsVersion(settings)
+  settingsAssetCache.assets.clear()
+
+  cacheSettingsAsset('logo', settings?.logo)
+  cacheSettingsAsset('hero', settings?.heroImage)
+
+  ;(settings?.galleryImages || []).forEach((image, index) => {
+    cacheSettingsAsset(`gallery:${index}`, image)
+  })
+
+  ;(settings?.homeDisplayImages || []).forEach((image, index) => {
+    cacheSettingsAsset(`home-display:${index}`, image)
+  })
+
+  ;(settings?.spaceGalleryImages || []).forEach((image, index) => {
+    cacheSettingsAsset(`space-gallery:${index}`, image)
+  })
+}
+
+const ensureSettingsAssetCache = async (expectedVersion = '') => {
+  if (
+    settingsAssetCache.assets.size > 0 &&
+    (!expectedVersion || settingsAssetCache.version === expectedVersion)
+  ) {
+    return
+  }
+
+  if (!settingsAssetCache.warmPromise) {
+    settingsAssetCache.warmPromise = (async () => {
+      const settings = await SiteSettings.findOne().select(SETTINGS_ASSET_SELECT).lean()
+
+      if (!settings) {
+        settingsAssetCache.version = ''
+        settingsAssetCache.assets.clear()
+        return
+      }
+
+      primeSettingsAssetCache(settings)
+    })().finally(() => {
+      settingsAssetCache.warmPromise = null
+    })
+  }
+
+  await settingsAssetCache.warmPromise
+}
+
+const getCachedSettingsAsset = (key) => settingsAssetCache.assets.get(key) || null
+
 const sendImageResponse = (res, image) => {
-  if (!image?.data || !image?.contentType) {
+  const buffer = image?.buffer || (image?.data ? Buffer.from(image.data, 'base64') : null)
+  const contentType = image?.contentType || ''
+
+  if (!buffer || !contentType) {
     return res.status(404).json({ code: 'NOT_FOUND' })
   }
 
   res.set('Cache-Control', 'public, max-age=86400')
-  res.contentType(image.contentType)
-  res.send(Buffer.from(image.data, 'base64'))
-}
-
-const getIndexedImage = async (field, index) => {
-  if (!Number.isInteger(index) || index < 0) {
-    return null
-  }
-
-  const [result] = await SiteSettings.aggregate([
-    { $limit: 1 },
-    {
-      $project: {
-        _id: 0,
-        image: { $arrayElemAt: [`$${field}`, index] },
-      },
-    },
-  ])
-
-  return result?.image || null
+  res.contentType(contentType)
+  res.send(buffer)
 }
 
 const mapSettings = (settings) => ({
@@ -97,34 +157,62 @@ export const getSettings = asyncHandler(async (req, res) => {
     settings = createdSettings.toObject()
   }
 
+  const expectedVersion = buildSettingsVersion(settings)
+  if (
+    !settingsAssetCache.assets.size ||
+    settingsAssetCache.version !== expectedVersion
+  ) {
+    void ensureSettingsAssetCache(expectedVersion)
+  }
+
   res.json({ settings: mapSettings(settings) })
 })
 
 export const getLogoImage = asyncHandler(async (_req, res) => {
-  const settings = await SiteSettings.findOne().select('logo')
-  return sendImageResponse(res, settings?.logo)
+  let image = getCachedSettingsAsset('logo')
+  if (!image) {
+    await ensureSettingsAssetCache()
+    image = getCachedSettingsAsset('logo')
+  }
+  return sendImageResponse(res, image)
 })
 
 export const getHeroImage = asyncHandler(async (_req, res) => {
-  const settings = await SiteSettings.findOne().select('heroImage')
-  return sendImageResponse(res, settings?.heroImage)
+  let image = getCachedSettingsAsset('hero')
+  if (!image) {
+    await ensureSettingsAssetCache()
+    image = getCachedSettingsAsset('hero')
+  }
+  return sendImageResponse(res, image)
 })
 
 export const getGalleryImage = asyncHandler(async (req, res) => {
   const index = Number(req.params.index)
-  const image = await getIndexedImage('galleryImages', index)
+  let image = getCachedSettingsAsset(`gallery:${index}`)
+  if (!image) {
+    await ensureSettingsAssetCache()
+    image = getCachedSettingsAsset(`gallery:${index}`)
+  }
   return sendImageResponse(res, image)
 })
 
 export const getHomeDisplayImage = asyncHandler(async (req, res) => {
   const index = Number(req.params.index)
-  const image = await getIndexedImage('homeDisplayImages', index)
+  let image = getCachedSettingsAsset(`home-display:${index}`)
+  if (!image) {
+    await ensureSettingsAssetCache()
+    image = getCachedSettingsAsset(`home-display:${index}`)
+  }
   return sendImageResponse(res, image)
 })
 
 export const getSpaceGalleryImage = asyncHandler(async (req, res) => {
   const index = Number(req.params.index)
-  const image = await getIndexedImage('spaceGalleryImages', index)
+  let image = getCachedSettingsAsset(`space-gallery:${index}`)
+  if (!image) {
+    await ensureSettingsAssetCache()
+    image = getCachedSettingsAsset(`space-gallery:${index}`)
+  }
   return sendImageResponse(res, image)
 })
 
@@ -244,6 +332,7 @@ export const updateSettings = asyncHandler(async (req, res) => {
 
   settings.set(payload)
   await settings.save()
+  primeSettingsAssetCache(settings.toObject())
   emitRealtimeEvent(req, 'settings:changed', {
     settings: mapSettings(settings),
   })
@@ -275,6 +364,7 @@ export const updateGalleryImage = asyncHandler(async (req, res) => {
 
   settings.galleryImages = images.slice(0, 8)
   await settings.save()
+  primeSettingsAssetCache(settings.toObject())
   emitRealtimeEvent(req, 'settings:changed', {
     settings: mapSettings(settings),
   })
@@ -306,6 +396,7 @@ export const updateSpaceGalleryImage = asyncHandler(async (req, res) => {
 
   settings.spaceGalleryImages = images.slice(0, 8)
   await settings.save()
+  primeSettingsAssetCache(settings.toObject())
   emitRealtimeEvent(req, 'settings:changed', {
     settings: mapSettings(settings),
   })
@@ -337,6 +428,7 @@ export const updateHomeDisplayImage = asyncHandler(async (req, res) => {
 
   settings.homeDisplayImages = images.slice(0, 8)
   await settings.save()
+  primeSettingsAssetCache(settings.toObject())
   emitRealtimeEvent(req, 'settings:changed', {
     settings: mapSettings(settings),
   })
@@ -359,6 +451,7 @@ export const deleteGalleryImage = asyncHandler(async (req, res) => {
   images.splice(index, 1)
   settings.galleryImages = images
   await settings.save()
+  primeSettingsAssetCache(settings.toObject())
   emitRealtimeEvent(req, 'settings:changed', {
     settings: mapSettings(settings),
   })
@@ -381,6 +474,7 @@ export const deleteSpaceGalleryImage = asyncHandler(async (req, res) => {
   images.splice(index, 1)
   settings.spaceGalleryImages = images
   await settings.save()
+  primeSettingsAssetCache(settings.toObject())
   emitRealtimeEvent(req, 'settings:changed', {
     settings: mapSettings(settings),
   })
@@ -403,6 +497,7 @@ export const deleteHomeDisplayImage = asyncHandler(async (req, res) => {
   images.splice(index, 1)
   settings.homeDisplayImages = images
   await settings.save()
+  primeSettingsAssetCache(settings.toObject())
   emitRealtimeEvent(req, 'settings:changed', {
     settings: mapSettings(settings),
   })
