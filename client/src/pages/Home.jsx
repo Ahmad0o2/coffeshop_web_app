@@ -422,6 +422,8 @@ export default function Home() {
                         <img
                           src={resolveImageUrl(todaysSpecial.imageUrl)}
                           alt={todaysSpecial.name}
+                          loading="eager"
+                          decoding="async"
                           className="h-full w-full object-cover"
                         />
                       ) : (
@@ -527,6 +529,8 @@ export default function Home() {
                     <img
                       src={resolveImageUrl(item.imageUrl)}
                       alt={item.name}
+                      loading="lazy"
+                      decoding="async"
                       className="h-full w-full object-cover transition duration-500 hover:scale-105"
                     />
                   ) : (

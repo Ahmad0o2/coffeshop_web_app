@@ -1,4 +1,5 @@
 import { CameraIcon } from "../common/Icons";
+import { resolveImageUrl } from "../../services/api";
 
 function GalleryTile({ image, alt, className = "", priority = false }) {
   return (
@@ -6,9 +7,10 @@ function GalleryTile({ image, alt, className = "", priority = false }) {
       className={`group relative overflow-hidden rounded-[1.5rem] border border-gold/15 bg-obsidian/65 shadow-card ${className}`}
     >
       <img
-        src={image}
+        src={resolveImageUrl(image)}
         alt={alt}
         loading={priority ? "eager" : "lazy"}
+        decoding="async"
         className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-obsidian/45 via-transparent to-transparent opacity-90" />

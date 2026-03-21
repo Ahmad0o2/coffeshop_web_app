@@ -3,6 +3,17 @@ import asyncHandler from '../utils/asyncHandler.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
 
 const API_BASE_URL = (process.env.API_BASE_URL || 'http://localhost:5000').replace(/\/$/, '')
+const SETTINGS_METADATA_SELECT = [
+  'logo.contentType',
+  'heroImage.contentType',
+  'spaceGalleryImages.contentType',
+  'homeDisplayImages.contentType',
+  'galleryImages.contentType',
+  'featuredEventIds',
+  'todaysSpecialProductId',
+  'featuredProductIds',
+  'updatedAt',
+].join(' ')
 
 const getOrCreateSettings = async () => {
   let settings = await SiteSettings.findOne()
@@ -22,9 +33,27 @@ const sendImageResponse = (res, image) => {
     return res.status(404).json({ code: 'NOT_FOUND' })
   }
 
-  res.set('Cache-Control', 'public, max-age=300')
+  res.set('Cache-Control', 'public, max-age=86400')
   res.contentType(image.contentType)
   res.send(Buffer.from(image.data, 'base64'))
+}
+
+const getIndexedImage = async (field, index) => {
+  if (!Number.isInteger(index) || index < 0) {
+    return null
+  }
+
+  const [result] = await SiteSettings.aggregate([
+    { $limit: 1 },
+    {
+      $project: {
+        _id: 0,
+        image: { $arrayElemAt: [`$${field}`, index] },
+      },
+    },
+  ])
+
+  return result?.image || null
 }
 
 const mapSettings = (settings) => ({
@@ -61,7 +90,13 @@ const parseList = (value) => {
 }
 
 export const getSettings = asyncHandler(async (req, res) => {
-  const settings = await getOrCreateSettings()
+  let settings = await SiteSettings.findOne().select(SETTINGS_METADATA_SELECT).lean()
+
+  if (!settings) {
+    const createdSettings = await SiteSettings.create({})
+    settings = createdSettings.toObject()
+  }
+
   res.json({ settings: mapSettings(settings) })
 })
 
@@ -77,20 +112,20 @@ export const getHeroImage = asyncHandler(async (_req, res) => {
 
 export const getGalleryImage = asyncHandler(async (req, res) => {
   const index = Number(req.params.index)
-  const settings = await SiteSettings.findOne().select('galleryImages')
-  return sendImageResponse(res, settings?.galleryImages?.[index])
+  const image = await getIndexedImage('galleryImages', index)
+  return sendImageResponse(res, image)
 })
 
 export const getHomeDisplayImage = asyncHandler(async (req, res) => {
   const index = Number(req.params.index)
-  const settings = await SiteSettings.findOne().select('homeDisplayImages')
-  return sendImageResponse(res, settings?.homeDisplayImages?.[index])
+  const image = await getIndexedImage('homeDisplayImages', index)
+  return sendImageResponse(res, image)
 })
 
 export const getSpaceGalleryImage = asyncHandler(async (req, res) => {
   const index = Number(req.params.index)
-  const settings = await SiteSettings.findOne().select('spaceGalleryImages')
-  return sendImageResponse(res, settings?.spaceGalleryImages?.[index])
+  const image = await getIndexedImage('spaceGalleryImages', index)
+  return sendImageResponse(res, image)
 })
 
 export const updateSettings = asyncHandler(async (req, res) => {

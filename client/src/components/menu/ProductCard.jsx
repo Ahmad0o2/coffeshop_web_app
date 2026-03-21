@@ -65,6 +65,8 @@ export default function ProductCard({
             <img
               src={resolveImageUrl(product.imageUrl)}
               alt={product.name}
+              loading="lazy"
+              decoding="async"
               className="absolute inset-0 block h-full w-full object-cover transition duration-500 will-change-transform transform-gpu scale-[1.02] group-hover:scale-105"
             />
           ) : (

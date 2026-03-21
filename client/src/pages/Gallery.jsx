@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import useSettings from "../hooks/useSettings";
 import { CameraIcon } from "../components/common/Icons";
 import { Button } from "../components/ui/button";
+import { resolveImageUrl } from "../services/api";
 
 const fallbackGalleryImages = (import.meta.env.VITE_GALLERY_IMAGES || "")
   .split(",")
@@ -67,8 +68,10 @@ export default function Gallery() {
                 }`}
               >
                 <img
-                  src={image}
+                  src={resolveImageUrl(image)}
                   alt={`Cortina gallery ${index + 1}`}
+                  loading={index < 2 ? "eager" : "lazy"}
+                  decoding="async"
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />
               </div>
