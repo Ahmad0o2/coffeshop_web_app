@@ -429,3 +429,4 @@ Fix options:
 ## Additional Documentation
 - `client/README.md` -> frontend-specific setup and structure
 - `server/README.md` -> backend-specific setup and route notes
+- `docs/project-management-setup.md` -> GitHub issue templates, PR workflow, contribution rules, and changelog usage
