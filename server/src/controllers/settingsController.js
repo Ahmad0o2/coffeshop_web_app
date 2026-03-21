@@ -1,3 +1,4 @@
+import { ROLES } from '../constants/roles.js'
 import SiteSettings from '../models/SiteSettings.js'
 import asyncHandler from '../utils/asyncHandler.js'
 import { emitRealtimeEvent } from '../utils/realtime.js'
@@ -149,6 +150,70 @@ const parseList = (value) => {
   }
 }
 
+const parseImageIndex = (req, res) => {
+  const index = Number(req.params.index)
+  if (!Number.isInteger(index) || index < 0) {
+    res.status(400).json({ code: 'INVALID', message: 'Invalid index' })
+    return null
+  }
+  return index
+}
+
+const emitSettingsChange = (req, settings, action = 'updated') => {
+  primeSettingsAssetCache(settings.toObject())
+  emitRealtimeEvent(req, 'settings:changed', {
+    action,
+    settings: mapSettings(settings),
+  })
+}
+
+const makeImageUpdater = (fieldName) =>
+  asyncHandler(async (req, res) => {
+    const index = parseImageIndex(req, res)
+    if (index === null) return
+
+    if (!req.file) {
+      return res.status(400).json({ code: 'INVALID', message: 'Image required' })
+    }
+
+    const settings = await getOrCreateSettings()
+    const images = [...(settings[fieldName] || [])]
+    const image = {
+      data: req.file.buffer.toString('base64'),
+      contentType: req.file.mimetype,
+    }
+
+    if (index >= images.length) {
+      images.push(image)
+    } else {
+      images[index] = image
+    }
+
+    settings[fieldName] = images.slice(0, 8)
+    await settings.save()
+    emitSettingsChange(req, settings)
+    res.json({ settings: mapSettings(settings) })
+  })
+
+const makeImageDeleter = (fieldName) =>
+  asyncHandler(async (req, res) => {
+    const index = parseImageIndex(req, res)
+    if (index === null) return
+
+    const settings = await getOrCreateSettings()
+    const images = [...(settings[fieldName] || [])]
+
+    if (index >= images.length) {
+      return res.status(404).json({ code: 'NOT_FOUND', message: 'Image not found' })
+    }
+
+    images.splice(index, 1)
+    settings[fieldName] = images
+    await settings.save()
+    emitSettingsChange(req, settings)
+    res.json({ settings: mapSettings(settings) })
+  })
+
 export const getSettings = asyncHandler(async (req, res) => {
   let settings = await SiteSettings.findOne().select(SETTINGS_METADATA_SELECT).lean()
 
@@ -221,11 +286,11 @@ export const updateSettings = asyncHandler(async (req, res) => {
 
   const permissions = req.user?.permissions || []
   const canManageBrand =
-    req.user?.role === 'Admin' || permissions.includes('manageBrand')
+    req.user?.role === ROLES.ADMIN || permissions.includes('manageBrand')
   const canManageEvents =
-    req.user?.role === 'Admin' || permissions.includes('manageEvents')
+    req.user?.role === ROLES.ADMIN || permissions.includes('manageEvents')
   const canManageProducts =
-    req.user?.role === 'Admin' || permissions.includes('manageProducts')
+    req.user?.role === ROLES.ADMIN || permissions.includes('manageProducts')
 
   const payload = {}
 
@@ -332,174 +397,14 @@ export const updateSettings = asyncHandler(async (req, res) => {
 
   settings.set(payload)
   await settings.save()
-  primeSettingsAssetCache(settings.toObject())
-  emitRealtimeEvent(req, 'settings:changed', {
-    settings: mapSettings(settings),
-  })
+  emitSettingsChange(req, settings)
   res.json({ settings: mapSettings(settings) })
 })
 
-export const updateGalleryImage = asyncHandler(async (req, res) => {
-  const index = Number(req.params.index)
-  if (!Number.isInteger(index) || index < 0) {
-    return res.status(400).json({ code: 'INVALID', message: 'Invalid index' })
-  }
-  if (!req.file) {
-    return res.status(400).json({ code: 'INVALID', message: 'Image required' })
-  }
+export const updateGalleryImage = makeImageUpdater('galleryImages')
+export const updateSpaceGalleryImage = makeImageUpdater('spaceGalleryImages')
+export const updateHomeDisplayImage = makeImageUpdater('homeDisplayImages')
 
-  const settings = await getOrCreateSettings()
-
-  const images = settings.galleryImages || []
-  const image = {
-    data: req.file.buffer.toString('base64'),
-    contentType: req.file.mimetype,
-  }
-
-  if (index >= images.length) {
-    images.push(image)
-  } else {
-    images[index] = image
-  }
-
-  settings.galleryImages = images.slice(0, 8)
-  await settings.save()
-  primeSettingsAssetCache(settings.toObject())
-  emitRealtimeEvent(req, 'settings:changed', {
-    settings: mapSettings(settings),
-  })
-  res.json({ settings: mapSettings(settings) })
-})
-
-export const updateSpaceGalleryImage = asyncHandler(async (req, res) => {
-  const index = Number(req.params.index)
-  if (!Number.isInteger(index) || index < 0) {
-    return res.status(400).json({ code: 'INVALID', message: 'Invalid index' })
-  }
-  if (!req.file) {
-    return res.status(400).json({ code: 'INVALID', message: 'Image required' })
-  }
-
-  const settings = await getOrCreateSettings()
-
-  const images = settings.spaceGalleryImages || []
-  const image = {
-    data: req.file.buffer.toString('base64'),
-    contentType: req.file.mimetype,
-  }
-
-  if (index >= images.length) {
-    images.push(image)
-  } else {
-    images[index] = image
-  }
-
-  settings.spaceGalleryImages = images.slice(0, 8)
-  await settings.save()
-  primeSettingsAssetCache(settings.toObject())
-  emitRealtimeEvent(req, 'settings:changed', {
-    settings: mapSettings(settings),
-  })
-  res.json({ settings: mapSettings(settings) })
-})
-
-export const updateHomeDisplayImage = asyncHandler(async (req, res) => {
-  const index = Number(req.params.index)
-  if (!Number.isInteger(index) || index < 0) {
-    return res.status(400).json({ code: 'INVALID', message: 'Invalid index' })
-  }
-  if (!req.file) {
-    return res.status(400).json({ code: 'INVALID', message: 'Image required' })
-  }
-
-  const settings = await getOrCreateSettings()
-
-  const images = settings.homeDisplayImages || []
-  const image = {
-    data: req.file.buffer.toString('base64'),
-    contentType: req.file.mimetype,
-  }
-
-  if (index >= images.length) {
-    images.push(image)
-  } else {
-    images[index] = image
-  }
-
-  settings.homeDisplayImages = images.slice(0, 8)
-  await settings.save()
-  primeSettingsAssetCache(settings.toObject())
-  emitRealtimeEvent(req, 'settings:changed', {
-    settings: mapSettings(settings),
-  })
-  res.json({ settings: mapSettings(settings) })
-})
-
-export const deleteGalleryImage = asyncHandler(async (req, res) => {
-  const index = Number(req.params.index)
-  if (!Number.isInteger(index) || index < 0) {
-    return res.status(400).json({ code: 'INVALID', message: 'Invalid index' })
-  }
-
-  const settings = await getOrCreateSettings()
-
-  const images = settings.galleryImages || []
-  if (index >= images.length) {
-    return res.status(404).json({ code: 'NOT_FOUND', message: 'Image not found' })
-  }
-
-  images.splice(index, 1)
-  settings.galleryImages = images
-  await settings.save()
-  primeSettingsAssetCache(settings.toObject())
-  emitRealtimeEvent(req, 'settings:changed', {
-    settings: mapSettings(settings),
-  })
-  res.json({ settings: mapSettings(settings) })
-})
-
-export const deleteSpaceGalleryImage = asyncHandler(async (req, res) => {
-  const index = Number(req.params.index)
-  if (!Number.isInteger(index) || index < 0) {
-    return res.status(400).json({ code: 'INVALID', message: 'Invalid index' })
-  }
-
-  const settings = await getOrCreateSettings()
-
-  const images = settings.spaceGalleryImages || []
-  if (index >= images.length) {
-    return res.status(404).json({ code: 'NOT_FOUND', message: 'Image not found' })
-  }
-
-  images.splice(index, 1)
-  settings.spaceGalleryImages = images
-  await settings.save()
-  primeSettingsAssetCache(settings.toObject())
-  emitRealtimeEvent(req, 'settings:changed', {
-    settings: mapSettings(settings),
-  })
-  res.json({ settings: mapSettings(settings) })
-})
-
-export const deleteHomeDisplayImage = asyncHandler(async (req, res) => {
-  const index = Number(req.params.index)
-  if (!Number.isInteger(index) || index < 0) {
-    return res.status(400).json({ code: 'INVALID', message: 'Invalid index' })
-  }
-
-  const settings = await getOrCreateSettings()
-
-  const images = settings.homeDisplayImages || []
-  if (index >= images.length) {
-    return res.status(404).json({ code: 'NOT_FOUND', message: 'Image not found' })
-  }
-
-  images.splice(index, 1)
-  settings.homeDisplayImages = images
-  await settings.save()
-  primeSettingsAssetCache(settings.toObject())
-  emitRealtimeEvent(req, 'settings:changed', {
-    settings: mapSettings(settings),
-  })
-  res.json({ settings: mapSettings(settings) })
-})
+export const deleteGalleryImage = makeImageDeleter('galleryImages')
+export const deleteSpaceGalleryImage = makeImageDeleter('spaceGalleryImages')
+export const deleteHomeDisplayImage = makeImageDeleter('homeDisplayImages')

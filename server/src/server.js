@@ -3,6 +3,8 @@ import dotenv from 'dotenv'
 import { Server as SocketIOServer } from 'socket.io'
 import app from './app.js'
 import connectDB from './config/db.js'
+import { ROLES } from './constants/roles.js'
+import { logger } from './utils/logger.js'
 import {
   ADMIN_SOCKET_ROOM,
   PUBLIC_SOCKET_ROOM,
@@ -16,7 +18,7 @@ const REQUIRED_ENV = ['MONGO_URI', 'JWT_SECRET', 'CLIENT_ORIGIN']
 const missing = REQUIRED_ENV.filter((key) => !process.env[key])
 
 if (missing.length) {
-  console.error('Missing required env vars:', missing.join(', '))
+  logger.error('Missing required env vars:', missing.join(', '))
   process.exit(1)
 }
 
@@ -54,13 +56,13 @@ io.on('connection', (socket) => {
     socket.join(buildUserSocketRoom(userId))
   }
 
-  if (role === 'Admin' || role === 'Staff') {
+  if (role === ROLES.ADMIN || role === ROLES.STAFF) {
     socket.join(ADMIN_SOCKET_ROOM)
   }
 
-  console.log('Socket connected', socket.id)
+  logger.debug('Socket connected', socket.id)
   socket.on('disconnect', () => {
-    console.log('Socket disconnected', socket.id)
+    logger.debug('Socket disconnected', socket.id)
   })
 })
 
@@ -70,10 +72,10 @@ connectDB()
   })
   .then(() => {
     server.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`)
+      logger.info(`Server running on port ${PORT}`)
     })
   })
   .catch((err) => {
-    console.error('Failed to connect DB', err)
+    logger.error('Failed to connect DB', err)
     process.exit(1)
   })

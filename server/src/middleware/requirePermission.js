@@ -1,4 +1,5 @@
 import { PERMISSIONS } from '../constants/permissions.js'
+import { ROLES } from '../constants/roles.js'
 
 const requirePermission = (...required) => (req, res, next) => {
   if (!req.user) {
@@ -7,11 +8,11 @@ const requirePermission = (...required) => (req, res, next) => {
       .json({ code: 'FORBIDDEN', message: 'Access denied' })
   }
 
-  if (req.user.role === 'Admin') {
+  if (req.user.role === ROLES.ADMIN) {
     return next()
   }
 
-  if (req.user.role !== 'Staff') {
+  if (req.user.role !== ROLES.STAFF) {
     return res
       .status(403)
       .json({ code: 'FORBIDDEN', message: 'Access denied' })

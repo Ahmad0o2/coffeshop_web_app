@@ -1,4 +1,5 @@
 import mongoose from 'mongoose'
+import { ORDER_STATUS } from '../constants/orderStatus.js'
 
 const orderItemSchema = new mongoose.Schema(
   {
@@ -37,11 +38,10 @@ const orderFeedbackSchema = new mongoose.Schema(
 const orderSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    tableId: { type: mongoose.Schema.Types.ObjectId, ref: 'Table', default: null },
     status: {
       type: String,
-      enum: ['Received', 'InProgress', 'Ready', 'Completed', 'Cancelled'],
-      default: 'Received',
+      enum: Object.values(ORDER_STATUS),
+      default: ORDER_STATUS.RECEIVED,
     },
     totalAmount: { type: Number, required: true },
     paymentMethod: { type: String, default: 'Cash' },

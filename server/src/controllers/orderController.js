@@ -1,3 +1,5 @@
+import { ORDER_STATUS } from '../constants/orderStatus.js'
+import { ROLES } from '../constants/roles.js'
 import Order from '../models/Order.js'
 import Product from '../models/Product.js'
 import RewardRedemption from '../models/RewardRedemption.js'
@@ -50,9 +52,16 @@ const emitOrderUpdate = (req, order, event, action, extra = {}) => {
   })
 }
 
+const LOCKED_ORDER_STATUSES = [
+  ORDER_STATUS.READY,
+  ORDER_STATUS.COMPLETED,
+  ORDER_STATUS.CANCELLED,
+]
+const MANAGEABLE_ORDER_STATUSES = Object.values(ORDER_STATUS)
+
 const canManageOrdersForUser = (user) =>
-  user?.role === 'Admin' ||
-  (user?.role === 'Staff' && (user?.permissions || []).includes('manageOrders'))
+  user?.role === ROLES.ADMIN ||
+  (user?.role === ROLES.STAFF && (user?.permissions || []).includes('manageOrders'))
 
 const loadOrderWithRelations = (orderId, { includeUser = false } = {}) => {
   let query = Order.findById(orderId).populate({
@@ -314,7 +323,6 @@ export const createOrder = asyncHandler(async (req, res) => {
 
     order = await Order.create({
       userId: req.user._id,
-      tableId: payload.tableId || null,
       paymentMethod,
       scheduledPickupTime: payload.scheduledPickupTime
         ? new Date(payload.scheduledPickupTime)
@@ -435,7 +443,7 @@ export const updateOrder = asyncHandler(async (req, res) => {
     return res.status(403).json({ code: 'FORBIDDEN', message: 'Access denied' })
   }
 
-  if (['Ready', 'Completed', 'Cancelled'].includes(order.status)) {
+  if (LOCKED_ORDER_STATUSES.includes(order.status)) {
     return res
       .status(400)
       .json({ code: 'INVALID', message: 'This order can no longer be edited.' })
@@ -500,8 +508,7 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   if (!order) {
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Order not found' })
   }
-  const allowed = ['Received', 'InProgress', 'Ready', 'Completed', 'Cancelled']
-  if (status && !allowed.includes(status)) {
+  if (status && !MANAGEABLE_ORDER_STATUSES.includes(status)) {
     return res
       .status(400)
       .json({ code: 'INVALID', message: 'Invalid status value' })
@@ -510,7 +517,10 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
   let loyaltyPoints = null
   order.status = status || order.status
   await order.save()
-  if (order.status === 'Completed' && prevStatus !== 'Completed') {
+  if (
+    order.status === ORDER_STATUS.COMPLETED &&
+    prevStatus !== ORDER_STATUS.COMPLETED
+  ) {
     const updatedUser = await User.findByIdAndUpdate(
       order.userId,
       { $inc: { loyaltyPoints: 1 } },
@@ -519,9 +529,9 @@ export const updateOrderStatus = asyncHandler(async (req, res) => {
     loyaltyPoints = updatedUser?.loyaltyPoints ?? null
   }
   if (
-    order.status === 'Cancelled' &&
-    prevStatus !== 'Cancelled' &&
-    prevStatus !== 'Completed'
+    order.status === ORDER_STATUS.CANCELLED &&
+    prevStatus !== ORDER_STATUS.CANCELLED &&
+    prevStatus !== ORDER_STATUS.COMPLETED
   ) {
     await restoreInventoryForItems(order.items)
     await restoreRewardRedemptionsForOrder(order)
@@ -541,12 +551,12 @@ export const cancelOrder = asyncHandler(async (req, res) => {
   if (!canManageOrders && String(order.userId) !== String(req.user._id)) {
     return res.status(403).json({ code: 'FORBIDDEN', message: 'Access denied' })
   }
-  if (['Ready', 'Completed', 'Cancelled'].includes(order.status)) {
+  if (LOCKED_ORDER_STATUSES.includes(order.status)) {
     return res
       .status(400)
       .json({ code: 'INVALID', message: 'This order can no longer be cancelled.' })
   }
-  order.status = 'Cancelled'
+  order.status = ORDER_STATUS.CANCELLED
   await order.save()
   await restoreInventoryForItems(order.items)
   await restoreRewardRedemptionsForOrder(order)
@@ -562,7 +572,7 @@ export const deleteOrderItem = asyncHandler(async (req, res) => {
   if (String(order.userId) !== String(req.user._id)) {
     return res.status(403).json({ code: 'FORBIDDEN', message: 'Access denied' })
   }
-  if (['Ready', 'Completed', 'Cancelled'].includes(order.status)) {
+  if (LOCKED_ORDER_STATUSES.includes(order.status)) {
     return res
       .status(400)
       .json({ code: 'INVALID', message: 'Cannot edit this order' })
@@ -615,7 +625,7 @@ export const submitOrderFeedback = asyncHandler(async (req, res) => {
     return res.status(403).json({ code: 'FORBIDDEN', message: 'Access denied' })
   }
 
-  if (order.status !== 'Completed') {
+  if (order.status !== ORDER_STATUS.COMPLETED) {
     return res.status(400).json({
       code: 'INVALID',
       message: 'Feedback is available after the order is completed.',

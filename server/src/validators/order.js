@@ -13,7 +13,6 @@ export const createOrderSchema = z
     rewardRedemptionIds: z.array(z.string().min(1)).default([]),
     paymentMethod: z.string().optional(),
     scheduledPickupTime: z.string().optional(),
-    tableId: z.string().optional().nullable(),
     specialInstructions: z.string().optional(),
   })
   .refine(

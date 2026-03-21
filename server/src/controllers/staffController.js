@@ -1,3 +1,4 @@
+import { ROLES } from '../constants/roles.js'
 import bcrypt from 'bcryptjs'
 import RefreshToken from '../models/RefreshToken.js'
 import User from '../models/User.js'
@@ -17,9 +18,9 @@ const mapStaff = (user) => ({
 })
 
 const ensureAdminExists = async (userIdBeingChanged) => {
-  const adminCount = await User.countDocuments({ role: 'Admin' })
+  const adminCount = await User.countDocuments({ role: ROLES.ADMIN })
   if (adminCount <= 1) {
-    const admin = await User.findOne({ role: 'Admin' })
+    const admin = await User.findOne({ role: ROLES.ADMIN })
     if (admin && String(admin._id) === String(userIdBeingChanged)) {
       return false
     }
@@ -28,7 +29,7 @@ const ensureAdminExists = async (userIdBeingChanged) => {
 }
 
 export const getStaff = asyncHandler(async (_req, res) => {
-  const staff = await User.find({ role: { $in: ['Admin', 'Staff'] } })
+  const staff = await User.find({ role: { $in: [ROLES.ADMIN, ROLES.STAFF] } })
     .select('-passwordHash')
     .sort({ createdAt: -1 })
   res.json({ staff: staff.map(mapStaff) })
@@ -72,7 +73,7 @@ export const createStaff = asyncHandler(async (req, res) => {
     email,
     phone: payload.phone,
     passwordHash,
-    role: payload.role || 'Staff',
+    role: payload.role || ROLES.STAFF,
     permissions: payload.permissions || [],
   })
 
@@ -108,7 +109,7 @@ export const updateStaff = asyncHandler(async (req, res) => {
   if (payload.phone !== undefined) staff.phone = payload.phone
 
   if (payload.role && payload.role !== staff.role) {
-    if (staff.role === 'Admin' && payload.role !== 'Admin') {
+    if (staff.role === ROLES.ADMIN && payload.role !== ROLES.ADMIN) {
       const canChange = await ensureAdminExists(staff._id)
       if (!canChange) {
         return res
@@ -151,7 +152,7 @@ export const deleteStaff = asyncHandler(async (req, res) => {
       .status(400)
       .json({ code: 'INVALID', message: 'You cannot remove yourself.' })
   }
-  if (staff.role === 'Admin') {
+  if (staff.role === ROLES.ADMIN) {
     const canChange = await ensureAdminExists(staff._id)
     if (!canChange) {
       return res
@@ -160,7 +161,7 @@ export const deleteStaff = asyncHandler(async (req, res) => {
     }
   }
 
-  staff.role = 'Customer'
+  staff.role = ROLES.CUSTOMER
   staff.permissions = []
   await staff.save()
   emitRealtimeEvent(req, 'staff:changed', {

@@ -1,3 +1,4 @@
+import { ROLES } from '../constants/roles.js'
 import User from '../models/User.js'
 import asyncHandler from '../utils/asyncHandler.js'
 import { verifyAccessToken } from '../utils/token.js'
@@ -5,7 +6,7 @@ import { verifyAccessToken } from '../utils/token.js'
 const buildTokenBackedUser = (decoded) => ({
   _id: decoded.id,
   id: decoded.id,
-  role: decoded.role || 'Customer',
+  role: decoded.role || ROLES.CUSTOMER,
   permissions: Array.isArray(decoded.permissions) ? decoded.permissions : [],
 })
 
@@ -25,7 +26,7 @@ const shouldHydrateUserFromDb = (req, decoded) => {
   if (
     req.originalUrl.startsWith('/api/v1/orders') &&
     decoded.role &&
-    decoded.role !== 'Customer'
+    decoded.role !== ROLES.CUSTOMER
   ) {
     return true
   }

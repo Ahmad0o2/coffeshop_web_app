@@ -1,4 +1,5 @@
 import ActivityLog from '../models/ActivityLog.js'
+import { logger } from './logger.js'
 
 export const PUBLIC_SOCKET_ROOM = 'public'
 export const ADMIN_SOCKET_ROOM = 'admin'
@@ -91,7 +92,7 @@ export const emitRealtimeEvent = (req, event, payload = {}) => {
     summary: envelope.summary,
     details: envelope.details,
   }).catch((error) => {
-    console.error('Failed to persist activity log', error)
+    logger.error('Failed to persist activity log', error)
   })
 
   if (!io) return
