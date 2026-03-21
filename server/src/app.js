@@ -41,7 +41,11 @@ app.use(
     credentials: true,
   })
 )
-app.use(helmet())
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+)
 app.use(morgan('dev'))
 app.use(express.json({ limit: '1mb' }))
 
