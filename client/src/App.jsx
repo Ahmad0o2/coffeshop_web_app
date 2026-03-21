@@ -11,7 +11,7 @@ import Auth from "./pages/Auth";
 import Rewards from "./pages/Rewards";
 import Points from "./pages/Points";
 import Events from "./pages/Events";
-import AdminDashboard from "./pages/AdminDashboard";
+import AdminDashboard from "./pages/AdminDashboard/index.jsx";
 import AdminActivity from "./pages/AdminActivity";
 import Gallery from "./pages/Gallery";
 import Location from "./pages/Location";
