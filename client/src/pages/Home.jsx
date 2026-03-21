@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet-async";
 import useAuth from "../hooks/useAuth";
@@ -91,7 +91,10 @@ export default function Home() {
   );
 
   const heroImage = settings?.heroImageUrl;
-  const homeDisplayImages = settings?.homeDisplayUrls?.filter(Boolean) || [];
+  const homeDisplayImages = useMemo(
+    () => settings?.homeDisplayUrls?.filter(Boolean) || [],
+    [settings?.homeDisplayUrls],
+  );
   const featuredEventIds = settings?.featuredEventIds || [];
   const featuredEvents = isAuthenticated
     ? events.filter((event) => featuredEventIds.includes(event._id)).slice(0, 2)
@@ -117,6 +120,27 @@ export default function Home() {
     }),
     [],
   );
+
+  useEffect(() => {
+    if (!homeDisplayImages.length) return undefined;
+
+    const preload = () => {
+      homeDisplayImages.slice(0, 8).forEach((url) => {
+        const image = new Image();
+        image.decoding = "async";
+        image.fetchPriority = "low";
+        image.src = resolveImageUrl(url);
+      });
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const idleId = window.requestIdleCallback(preload, { timeout: 1200 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timeoutId = window.setTimeout(preload, 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [homeDisplayImages]);
 
   if (
     settingsLoading ||

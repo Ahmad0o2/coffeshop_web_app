@@ -11,6 +11,7 @@ function GalleryTile({ image, alt, className = "", priority = false }) {
         alt={alt}
         loading={priority ? "eager" : "lazy"}
         decoding="async"
+        fetchPriority={priority ? "high" : "auto"}
         className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
       />
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-obsidian/45 via-transparent to-transparent opacity-90" />
@@ -70,6 +71,7 @@ export default function CircularGallery({ images = [] }) {
             key={`${image}-${index}`}
             image={image}
             alt={`Cortina.D gallery ${index + 3}`}
+            priority={index < 2}
             className="aspect-[4/3] sm:aspect-auto sm:min-h-[150px] lg:min-h-0"
           />
         ))}

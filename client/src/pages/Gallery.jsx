@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import useSettings from "../hooks/useSettings";
 import { CameraIcon } from "../components/common/Icons";
@@ -14,6 +15,17 @@ export default function Gallery() {
   const images = settings?.galleryUrls?.filter(Boolean)?.length
     ? settings.galleryUrls.filter(Boolean)
     : fallbackGalleryImages;
+
+  useEffect(() => {
+    if (!images.length) return;
+
+    images.slice(0, 8).forEach((url) => {
+      const image = new Image();
+      image.decoding = "async";
+      image.fetchPriority = "high";
+      image.src = resolveImageUrl(url);
+    });
+  }, [images]);
 
   return (
     <section className="section-shell">
@@ -70,8 +82,9 @@ export default function Gallery() {
                 <img
                   src={resolveImageUrl(image)}
                   alt={`Cortina gallery ${index + 1}`}
-                  loading={index < 2 ? "eager" : "lazy"}
+                  loading={index < 4 ? "eager" : "lazy"}
                   decoding="async"
+                  fetchPriority={index < 4 ? "high" : "auto"}
                   className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
                 />
               </div>
