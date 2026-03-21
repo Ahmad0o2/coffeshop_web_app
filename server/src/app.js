@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import mongoose from 'mongoose'
 import morgan from 'morgan'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
@@ -59,8 +60,15 @@ app.use(
 app.use('/api/v1/auth/login', authLimiter)
 app.use('/api/v1/auth/otp', authLimiter)
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok' })
+app.get('/api/health', async (req, res) => {
+  const dbState = mongoose.connection.readyState
+
+  res.status(dbState === 1 ? 200 : 503).json({
+    status: dbState === 1 ? 'ok' : 'degraded',
+    db: dbState === 1 ? 'connected' : 'disconnected',
+    uptime: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  })
 })
 
 app.get('/', (req, res) => {

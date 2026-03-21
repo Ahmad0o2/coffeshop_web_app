@@ -21,6 +21,7 @@ This repository contains both parts of the app:
 - [API Examples](#api-examples)
 - [Useful Commands](#useful-commands)
 - [Troubleshooting](#troubleshooting)
+- [DevOps and CI/CD](#devops-and-cicd)
 - [Deployment Notes](#deployment-notes)
 - [Additional Documentation](#additional-documentation)
 
@@ -417,6 +418,14 @@ Fix options:
 - delete `client/dist`
 - run the build again
 
+## DevOps and CI/CD
+- GitHub Actions CI now runs backend tests and frontend production builds on every push to `main` and every PR targeting `main`.
+- Docker support is available for both app layers:
+  `server/Dockerfile` packages the Express API and `client/Dockerfile` builds the Vite app and serves it with Nginx.
+- `docker-compose.yml` starts MongoDB, the API, and the frontend together for a local container-based workflow.
+- The backend now fails fast if `MONGO_URI`, `JWT_SECRET`, or `CLIENT_ORIGIN` are missing.
+- `/api/health` now reports API uptime and MongoDB connection health with `200` or `503` status codes.
+
 ## Deployment Notes
 - Do not commit real `.env` files
 - Only `.env.example` files should be tracked
@@ -429,4 +438,5 @@ Fix options:
 ## Additional Documentation
 - `client/README.md` -> frontend-specific setup and structure
 - `server/README.md` -> backend-specific setup and route notes
+- `docs/devops-cicd-setup.md` -> CI workflow, Dockerfiles, Compose stack, health check behavior, and deployment baseline
 - `docs/project-management-setup.md` -> GitHub issue templates, PR workflow, contribution rules, and changelog usage

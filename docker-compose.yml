@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_DATABASE: coffeshop
+
+  server:
+    build: ./server
+    ports:
+      - '5000:5000'
+    env_file: ./server/.env
+    depends_on:
+      - mongodb
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/coffeshop
+
+  client:
+    build: ./client
+    ports:
+      - '80:80'
+    depends_on:
+      - server
+
+volumes:
+  mongo-data:

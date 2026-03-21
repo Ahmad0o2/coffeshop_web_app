@@ -12,6 +12,14 @@ import seedData from './utils/seed.js'
 
 dotenv.config()
 
+const REQUIRED_ENV = ['MONGO_URI', 'JWT_SECRET', 'CLIENT_ORIGIN']
+const missing = REQUIRED_ENV.filter((key) => !process.env[key])
+
+if (missing.length) {
+  console.error('Missing required env vars:', missing.join(', '))
+  process.exit(1)
+}
+
 const PORT = process.env.PORT || 5000
 const clientOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
   .split(',')
