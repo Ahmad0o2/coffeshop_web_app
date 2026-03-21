@@ -19,14 +19,12 @@ const clientOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
   .map((value) => value.trim())
   .filter(Boolean)
 
-const authAttemptLimiter = rateLimit({
+const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
-  standardHeaders: true,
-  legacyHeaders: false,
+  max: 10,
   message: {
     code: 'TOO_MANY_REQUESTS',
-    message: 'Too many authentication attempts. Please try again in 15 minutes.',
+    message: 'Too many attempts, try again later.',
   },
 })
 
@@ -54,8 +52,8 @@ app.use(
   })
 )
 
-app.use('/api/v1/auth/login', authAttemptLimiter)
-app.use('/api/v1/auth/otp/request', authAttemptLimiter)
+app.use('/api/v1/auth/login', authLimiter)
+app.use('/api/v1/auth/otp', authLimiter)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })

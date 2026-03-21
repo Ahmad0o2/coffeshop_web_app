@@ -67,38 +67,6 @@ const buildActivityDetails = (event, payload = {}) => ({
   subject: getActivitySubject(payload),
 })
 
-const emitToRooms = (io, rooms, event, payload) => {
-  const uniqueRooms = [...new Set(rooms.filter(Boolean))]
-
-  if (!uniqueRooms.length) return
-
-  let broadcaster = io
-  uniqueRooms.forEach((room) => {
-    broadcaster = broadcaster.to(room)
-  })
-
-  broadcaster.emit(event, payload)
-}
-
-const resolveEventRooms = (event, payload = {}) => {
-  switch (event) {
-    case 'catalog:changed':
-    case 'events:changed':
-    case 'rewards:changed':
-    case 'settings:changed':
-      return [PUBLIC_SOCKET_ROOM]
-    case 'order:new':
-    case 'order:status':
-    case 'order:updated':
-    case 'order:feedback':
-      return [ADMIN_SOCKET_ROOM, payload.userId ? buildUserSocketRoom(payload.userId) : null]
-    case 'staff:changed':
-      return [ADMIN_SOCKET_ROOM, payload.subjectId ? buildUserSocketRoom(payload.subjectId) : null]
-    default:
-      return [ADMIN_SOCKET_ROOM]
-  }
-}
-
 export const emitRealtimeEvent = (req, event, payload = {}) => {
   const io = req.app.get('io')
   const actor = buildActor(req.user)
@@ -128,6 +96,33 @@ export const emitRealtimeEvent = (req, event, payload = {}) => {
 
   if (!io) return
 
-  emitToRooms(io, resolveEventRooms(event, payload), event, envelope)
-  emitToRooms(io, [ADMIN_SOCKET_ROOM], 'admin:activity', envelope)
+  const isAdminEvent = [
+    'catalog:changed',
+    'events:changed',
+    'rewards:changed',
+    'settings:changed',
+    'staff:changed',
+    'admin:activity',
+  ].includes(event)
+
+  io.to(ADMIN_SOCKET_ROOM).emit(event, envelope)
+  io.to(ADMIN_SOCKET_ROOM).emit('admin:activity', envelope)
+
+  if (isAdminEvent) {
+    if (
+      ['catalog:changed', 'events:changed', 'rewards:changed', 'settings:changed'].includes(event)
+    ) {
+      io.to(PUBLIC_SOCKET_ROOM).emit(event, envelope)
+    }
+
+    if (event === 'staff:changed' && payload.subjectId) {
+      io.to(buildUserSocketRoom(payload.subjectId)).emit(event, envelope)
+    }
+
+    return
+  }
+
+  if (payload.userId) {
+    io.to(buildUserSocketRoom(payload.userId)).emit(event, envelope)
+  }
 }
