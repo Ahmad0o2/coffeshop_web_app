@@ -9,6 +9,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import SelectMenu from "../components/common/SelectMenu";
 import { getApiErrorMessage } from "../utils/apiErrors";
+import { buildSocketConnectionOptions } from "../utils/socketAuth";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 const ACTIVITY_LIMIT = 250;
@@ -78,7 +79,7 @@ export default function AdminActivity() {
   useEffect(() => {
     if (!isAuthenticated || !isAdmin) return undefined;
 
-    const socket = io(socketUrl);
+    const socket = io(socketUrl, buildSocketConnectionOptions(user));
 
     const handleAdminActivity = (payload) => {
       setActivityLogs((prev) => {
@@ -97,7 +98,7 @@ export default function AdminActivity() {
       socket.off("admin:activity", handleAdminActivity);
       socket.disconnect();
     };
-  }, [isAuthenticated, isAdmin]);
+  }, [isAuthenticated, isAdmin, user]);
 
   const eventOptions = useMemo(() => {
     const values = Array.from(

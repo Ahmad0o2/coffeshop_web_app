@@ -39,16 +39,19 @@ const normalizePhone = (value) =>
 
 const OTP_EXPIRY_MINUTES = 10
 const MAX_OTP_ATTEMPTS = 5
+const REFRESH_COOKIE_NAME =
+  process.env.REFRESH_TOKEN_COOKIE_NAME || 'cortina_refresh_token'
 
 const createOtpCode = () => String(crypto.randomInt(100000, 1000000))
 const createRefreshTokenId = () => crypto.randomUUID()
 
-const getRefreshTokenExpiryDate = () => {
-  const ttl = process.env.REFRESH_TOKEN_TTL || '30d'
+const getRefreshTokenTtlValue = () => process.env.REFRESH_TOKEN_TTL || '30d'
+
+const getDurationFromTtl = (ttl) => {
   const match = ttl.match(/^(\d+)([smhd])$/)
 
   if (!match) {
-    return new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    return 30 * 24 * 60 * 60 * 1000
   }
 
   const [, rawAmount, unit] = match
@@ -60,10 +63,49 @@ const getRefreshTokenExpiryDate = () => {
     d: 24 * 60 * 60 * 1000,
   }
 
-  return new Date(Date.now() + amount * unitMap[unit])
+  return amount * unitMap[unit]
 }
 
-const createAuthPayload = async (user, { previousTokenRecord = null } = {}) => {
+const getRefreshTokenExpiryDate = () =>
+  new Date(Date.now() + getDurationFromTtl(getRefreshTokenTtlValue()))
+
+const getRefreshCookieOptions = () => ({
+  httpOnly: true,
+  sameSite: 'lax',
+  secure:
+    process.env.AUTH_COOKIE_SECURE === 'true' || process.env.NODE_ENV === 'production',
+  path: '/api/v1/auth',
+  maxAge: getDurationFromTtl(getRefreshTokenTtlValue()),
+})
+
+const setRefreshTokenCookie = (res, refreshToken) => {
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, getRefreshCookieOptions())
+}
+
+const clearRefreshTokenCookie = (res) => {
+  res.clearCookie(REFRESH_COOKIE_NAME, {
+    ...getRefreshCookieOptions(),
+    maxAge: undefined,
+  })
+}
+
+const parseCookies = (cookieHeader = '') =>
+  cookieHeader.split(';').reduce((accumulator, cookiePart) => {
+    const [rawKey, ...rawValueParts] = cookiePart.trim().split('=')
+    if (!rawKey || rawValueParts.length === 0) return accumulator
+
+    accumulator[rawKey] = decodeURIComponent(rawValueParts.join('='))
+    return accumulator
+  }, {})
+
+const getRefreshTokenFromRequest = (req) =>
+  parseCookies(req.headers.cookie || '')[REFRESH_COOKIE_NAME] || ''
+
+const createAuthPayload = async (
+  user,
+  res,
+  { previousTokenRecord = null } = {}
+) => {
   const tokenId = createRefreshTokenId()
   const accessToken = generateAccessToken(user._id)
   const refreshToken = generateRefreshToken(user._id, tokenId)
@@ -81,10 +123,11 @@ const createAuthPayload = async (user, { previousTokenRecord = null } = {}) => {
     await previousTokenRecord.save()
   }
 
+  setRefreshTokenCookie(res, refreshToken)
+
   return {
     user: sanitizeUser(user),
     token: accessToken,
-    refreshToken,
   }
 }
 
@@ -375,7 +418,7 @@ export const register = asyncHandler(async (req, res) => {
     throw error
   }
 
-  const authPayload = await createAuthPayload(user)
+  const authPayload = await createAuthPayload(user, res)
   res.status(201).json(authPayload)
 })
 
@@ -403,7 +446,7 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(401).json({ code: 'UNAUTHORIZED', message: 'Invalid login' })
   }
 
-  const authPayload = await createAuthPayload(user)
+  const authPayload = await createAuthPayload(user, res)
   res.json(authPayload)
 })
 
@@ -443,6 +486,7 @@ export const resetPassword = asyncHandler(async (req, res) => {
   user.passwordHash = await bcrypt.hash(newPassword, salt)
   await user.save()
   await revokeAllRefreshTokensForUser(user._id)
+  clearRefreshTokenCookie(res)
 
   res.json({
     message: 'Password reset successful. You can sign in with the new password now.',
@@ -450,18 +494,29 @@ export const resetPassword = asyncHandler(async (req, res) => {
 })
 
 export const refreshSession = asyncHandler(async (req, res) => {
-  const payload = refreshTokenSchema.parse(req.body)
+  refreshTokenSchema.parse(req.body || {})
+  const refreshToken = getRefreshTokenFromRequest(req)
+
+  if (!refreshToken) {
+    clearRefreshTokenCookie(res)
+    return res.status(401).json({
+      code: 'UNAUTHORIZED',
+      message: 'Refresh token is missing or expired.',
+    })
+  }
+
   let decoded
   try {
-    decoded = verifyRefreshToken(payload.refreshToken)
+    decoded = verifyRefreshToken(refreshToken)
   } catch {
+    clearRefreshTokenCookie(res)
     return res.status(401).json({
       code: 'UNAUTHORIZED',
       message: 'Refresh token is invalid or expired.',
     })
   }
 
-  const tokenHash = RefreshToken.hashToken(payload.refreshToken)
+  const tokenHash = RefreshToken.hashToken(refreshToken)
   const storedToken = await RefreshToken.findOne({
     tokenId: decoded.tokenId,
     tokenHash,
@@ -469,6 +524,7 @@ export const refreshSession = asyncHandler(async (req, res) => {
   })
 
   if (!storedToken) {
+    clearRefreshTokenCookie(res)
     return res.status(401).json({
       code: 'UNAUTHORIZED',
       message: 'Refresh token is invalid or expired.',
@@ -477,6 +533,7 @@ export const refreshSession = asyncHandler(async (req, res) => {
 
   if (storedToken.revokedAt) {
     await revokeAllRefreshTokensForUser(decoded.id)
+    clearRefreshTokenCookie(res)
     return res.status(401).json({
       code: 'UNAUTHORIZED',
       message: 'Refresh token has already been used. Please sign in again.',
@@ -486,6 +543,7 @@ export const refreshSession = asyncHandler(async (req, res) => {
   if (storedToken.expiresAt.getTime() < Date.now()) {
     storedToken.revokedAt = new Date()
     await storedToken.save()
+    clearRefreshTokenCookie(res)
 
     return res.status(401).json({
       code: 'UNAUTHORIZED',
@@ -497,13 +555,14 @@ export const refreshSession = asyncHandler(async (req, res) => {
   if (!user) {
     storedToken.revokedAt = new Date()
     await storedToken.save()
+    clearRefreshTokenCookie(res)
     return res.status(401).json({
       code: 'UNAUTHORIZED',
       message: 'User not found.',
     })
   }
 
-  const authPayload = await createAuthPayload(user, {
+  const authPayload = await createAuthPayload(user, res, {
     previousTokenRecord: storedToken,
   })
 
@@ -511,8 +570,10 @@ export const refreshSession = asyncHandler(async (req, res) => {
 })
 
 export const logout = asyncHandler(async (req, res) => {
-  const payload = logoutSchema.parse(req.body || {})
-  await revokeRefreshTokenRecord(payload.refreshToken)
+  logoutSchema.parse(req.body || {})
+  const refreshToken = getRefreshTokenFromRequest(req)
+  await revokeRefreshTokenRecord(refreshToken)
+  clearRefreshTokenCookie(res)
   res.json({ message: 'Signed out successfully.' })
 })
 

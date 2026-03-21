@@ -2,15 +2,20 @@ import axios from "axios";
 import {
   clearAuthSession,
   getAccessToken,
-  getRefreshToken,
   storeAuthSession,
 } from "./authStorage";
 
 const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
 
-const api = axios.create({ baseURL });
+const api = axios.create({
+  baseURL,
+  withCredentials: true,
+});
 
-const refreshClient = axios.create({ baseURL });
+const refreshClient = axios.create({
+  baseURL,
+  withCredentials: true,
+});
 
 let authFailureHandler = null;
 let authSessionHandler = null;
@@ -25,29 +30,27 @@ export const setAuthSessionHandler = (handler) => {
 };
 
 const shouldSkipRefresh = (url = "") =>
-  ["/auth/login", "/auth/register", "/auth/otp/request", "/auth/password-reset", "/auth/refresh", "/auth/logout"].some(
-    (path) => url.includes(path),
-  );
+  [
+    "/auth/login",
+    "/auth/register",
+    "/auth/otp/request",
+    "/auth/password-reset",
+    "/auth/refresh",
+    "/auth/logout",
+  ].some((path) => url.includes(path));
 
 const refreshAccessToken = async () => {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    throw new Error("Missing refresh token");
-  }
-
-  const { data } = await refreshClient.post("/auth/refresh", { refreshToken });
+  const { data } = await refreshClient.post("/auth/refresh");
 
   storeAuthSession({
     user: data?.user || null,
     token: data?.token || "",
-    refreshToken: data?.refreshToken || "",
   });
 
   if (typeof authSessionHandler === "function") {
     authSessionHandler({
       user: data?.user || null,
       token: data?.token || "",
-      refreshToken: data?.refreshToken || "",
     });
   }
 
@@ -77,10 +80,6 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (!getRefreshToken()) {
-      return Promise.reject(error);
-    }
-
     originalRequest._retry = true;
 
     try {
@@ -98,7 +97,6 @@ api.interceptors.response.use(
         authSessionHandler({
           user: null,
           token: "",
-          refreshToken: "",
         });
       }
       if (typeof authFailureHandler === "function") {

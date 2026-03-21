@@ -6,6 +6,7 @@ import useCart from "../../hooks/useCart";
 import useAuth from "../../hooks/useAuth";
 import useSettings from "../../hooks/useSettings";
 import api from "../../services/api";
+import { buildSocketConnectionOptions } from "../../utils/socketAuth";
 import {
   CartIcon,
   CloseIcon,
@@ -163,7 +164,7 @@ export default function Navbar() {
   useEffect(() => {
     if (!isAuthenticated || !canManageOrders) return undefined;
 
-    const socket = io(socketUrl);
+    const socket = io(socketUrl, buildSocketConnectionOptions(user));
     const syncAdminOrders = () => {
       queryClient.invalidateQueries({ queryKey: ["navbar-admin-orders"] });
     };
@@ -180,7 +181,7 @@ export default function Navbar() {
       socket.off("order:feedback", syncAdminOrders);
       socket.disconnect();
     };
-  }, [canManageOrders, isAuthenticated, queryClient]);
+  }, [canManageOrders, isAuthenticated, queryClient, user]);
   const isAdminDrawerItemActive = (to) => {
     const [pathname, search = ""] = to.split("?");
     if (location.pathname !== pathname) return false;

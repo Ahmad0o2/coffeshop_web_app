@@ -17,6 +17,7 @@ import {
   isProductLowStock,
   isProductOutOfStock,
 } from "../utils/inventory";
+import { buildSocketConnectionOptions } from "../utils/socketAuth";
 import { cn } from "../lib/utils";
 
 const fetchOrders = async () => {
@@ -867,7 +868,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    const socket = io(socketUrl);
+    const socket = io(socketUrl, buildSocketConnectionOptions(user));
 
     const handleCatalogChange = () => {
       if (canManageProducts || canManageRewards) {
@@ -965,6 +966,7 @@ export default function AdminDashboard() {
     refetchEvents,
     refetchRewards,
     refetchStaff,
+    user,
   ]);
 
   const availableTabs = useMemo(() => {

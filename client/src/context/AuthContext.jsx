@@ -5,10 +5,10 @@ import api, {
   setAuthFailureHandler,
   setAuthSessionHandler,
 } from "../services/api";
+import { buildSocketConnectionOptions } from "../utils/socketAuth";
 import {
   clearAuthSession,
   getAccessToken,
-  getRefreshToken,
   getStoredUser,
   storeAuthSession,
 } from "../services/authStorage";
@@ -18,15 +18,14 @@ const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => getStoredUser());
   const [token, setToken] = useState(() => getAccessToken());
+  const [isBootstrapping, setIsBootstrapping] = useState(true);
 
-  const saveAuth = useCallback((nextUser, nextToken, nextRefreshToken = null) => {
+  const saveAuth = useCallback((nextUser, nextToken) => {
     setUser(nextUser);
     setToken(nextToken);
     storeAuthSession({
       user: nextUser,
       token: nextToken,
-      refreshToken:
-        nextRefreshToken !== null ? nextRefreshToken : getRefreshToken(),
     });
   }, []);
 
@@ -37,7 +36,6 @@ export function AuthProvider({ children }) {
       storeAuthSession({
         user: nextUser,
         token: getAccessToken(),
-        refreshToken: getRefreshToken(),
       });
       return nextUser;
     });
@@ -45,28 +43,26 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (payload) => {
     const { data } = await api.post("/auth/login", payload);
-    saveAuth(data.user, data.token, data.refreshToken || "");
+    saveAuth(data.user, data.token);
     return data;
   }, [saveAuth]);
 
   const register = useCallback(async (payload) => {
     const { data } = await api.post("/auth/register", payload);
-    saveAuth(data.user, data.token, data.refreshToken || "");
+    saveAuth(data.user, data.token);
     return data;
   }, [saveAuth]);
 
   const logout = useCallback(async () => {
-    const refreshToken = getRefreshToken();
-
     try {
-      await api.post("/auth/logout", refreshToken ? { refreshToken } : {});
+      await api.post("/auth/logout");
     } catch {
       // Best effort only; local sign-out still proceeds.
     }
 
     clearAuthSession();
     setUser(null);
-    setToken(null);
+    setToken("");
     if (typeof window !== "undefined") {
       window.location.assign("/");
     }
@@ -77,7 +73,7 @@ export function AuthProvider({ children }) {
     try {
       const { data } = await api.get("/auth/profile");
       if (data?.user) {
-        saveAuth(data.user, getAccessToken(), getRefreshToken());
+        saveAuth(data.user, getAccessToken());
       }
       return data?.user || null;
     } catch {
@@ -89,7 +85,7 @@ export function AuthProvider({ children }) {
     setAuthFailureHandler(() => {
       clearAuthSession();
       setUser(null);
-      setToken(null);
+      setToken("");
       if (typeof window !== "undefined" && window.location.pathname !== "/") {
         window.location.assign("/");
       }
@@ -97,7 +93,7 @@ export function AuthProvider({ children }) {
 
     setAuthSessionHandler((session) => {
       setUser(session?.user || null);
-      setToken(session?.token || null);
+      setToken(session?.token || "");
     });
 
     return () => {
@@ -107,8 +103,37 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const restoreSession = async () => {
+      try {
+        const { data } = await api.post("/auth/refresh");
+        if (!cancelled && data?.token) {
+          saveAuth(data.user || null, data.token);
+        }
+      } catch {
+        if (!cancelled) {
+          clearAuthSession();
+          setUser(null);
+          setToken("");
+        }
+      } finally {
+        if (!cancelled) {
+          setIsBootstrapping(false);
+        }
+      }
+    };
+
+    restoreSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [saveAuth]);
+
+  useEffect(() => {
     if (!token || !user?.id) return;
-    const socket = io(socketUrl);
+    const socket = io(socketUrl, buildSocketConnectionOptions(user));
 
     const handleStaffChange = (payload) => {
       if (String(payload?.subjectId) === String(user.id)) {
@@ -140,20 +165,25 @@ export function AuthProvider({ children }) {
       socket.off("order:status", handleOrderStatus);
       socket.disconnect();
     };
-  }, [token, user?.id, refreshProfile, mergeUser]);
+  }, [token, user, refreshProfile, mergeUser]);
 
   const value = useMemo(
     () => ({
       user,
       token,
+      isBootstrapping,
       isAuthenticated: Boolean(token && user),
       login,
       register,
       logout,
       refreshProfile,
     }),
-    [user, token, login, register, logout, refreshProfile],
+    [user, token, isBootstrapping, login, register, logout, refreshProfile],
   );
+
+  if (isBootstrapping) {
+    return null;
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

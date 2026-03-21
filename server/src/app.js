@@ -13,10 +13,32 @@ import adminRoutes from './routes/adminRoutes.js'
 import { errorHandler, notFound } from './middleware/error.js'
 
 const app = express()
+const clientOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean)
+
+const authAttemptLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    code: 'TOO_MANY_REQUESTS',
+    message: 'Too many authentication attempts. Please try again in 15 minutes.',
+  },
+})
 
 app.use(
   cors({
-    origin: process.env.CLIENT_ORIGIN || '*',
+    origin(origin, callback) {
+      if (!origin || clientOrigins.includes(origin)) {
+        callback(null, true)
+        return
+      }
+
+      callback(new Error('Origin not allowed by CORS'))
+    },
     credentials: true,
   })
 )
@@ -30,6 +52,9 @@ app.use(
     max: 300,
   })
 )
+
+app.use('/api/v1/auth/login', authAttemptLimiter)
+app.use('/api/v1/auth/otp/request', authAttemptLimiter)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok' })

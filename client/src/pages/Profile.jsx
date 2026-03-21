@@ -21,6 +21,7 @@ import {
   loadOrderEditSession,
   saveOrderEditSession,
 } from "../utils/orderEditSession";
+import { buildSocketConnectionOptions } from "../utils/socketAuth";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 const orderDateFilterOptions = ["All Dates", "Today", "Yesterday", "Last 7 Days", "This Month", "This Year"];
@@ -662,7 +663,7 @@ export default function Profile() {
 
   useEffect(() => {
     if (!isAuthenticated || !user?.id) return;
-    const socket = io(socketUrl);
+    const socket = io(socketUrl, buildSocketConnectionOptions(user));
     const handler = (payload) => {
       if (!payload?.orderId) return;
       if (payload.event === "order:updated" || payload.event === "order:feedback") {
@@ -693,7 +694,7 @@ export default function Profile() {
     socket.on("order:updated", handler);
     socket.on("order:feedback", handler);
     return () => socket.disconnect();
-  }, [isAuthenticated, user?.id, loadOrders, refreshProfile]);
+  }, [isAuthenticated, user, loadOrders, refreshProfile]);
 
   if (!isAuthenticated) {
     return (

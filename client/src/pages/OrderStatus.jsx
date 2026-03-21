@@ -4,7 +4,9 @@ import { io } from "socket.io-client";
 import api from "../services/api";
 import OrderStatus from "../components/order/OrderStatus";
 import { DetailSkeleton } from "../components/common/PageSkeleton";
+import useAuth from "../hooks/useAuth";
 import useTheme from "../hooks/useTheme";
+import { buildSocketConnectionOptions } from "../utils/socketAuth";
 import { cn } from "../lib/utils";
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
@@ -25,6 +27,7 @@ const formatOrderDateTime = (value) => {
 
 export default function OrderStatusPage() {
   const { id } = useParams();
+  const { user } = useAuth();
   const { theme } = useTheme();
   const [order, setOrder] = useState(null);
   const isDayTheme = theme === "day";
@@ -65,7 +68,9 @@ export default function OrderStatusPage() {
   }, [id]);
 
   useEffect(() => {
-    const socket = io(socketUrl);
+    if (!user?.id) return undefined;
+
+    const socket = io(socketUrl, buildSocketConnectionOptions(user));
     socket.on("order:status", (payload) => {
       if (payload.orderId === id) {
         api.get(`/orders/${id}`).then((res) => {
@@ -74,7 +79,7 @@ export default function OrderStatusPage() {
       }
     });
     return () => socket.disconnect();
-  }, [id]);
+  }, [id, user]);
 
   if (!order) {
     return <DetailSkeleton />;

@@ -80,10 +80,6 @@ export const resetPasswordSchema = z.object({
   newPassword: z.string().min(6),
 })
 
-export const refreshTokenSchema = z.object({
-  refreshToken: z.string().min(10),
-})
+export const refreshTokenSchema = z.object({}).passthrough()
 
-export const logoutSchema = z.object({
-  refreshToken: z.string().min(10).optional(),
-})
+export const logoutSchema = z.object({}).passthrough()
