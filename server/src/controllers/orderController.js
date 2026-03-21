@@ -632,14 +632,10 @@ export const submitOrderFeedback = asyncHandler(async (req, res) => {
     })
   }
 
-  const latestOrder = await Order.findOne({ userId: req.user._id })
-    .sort({ createdAt: -1, _id: -1 })
-    .select('_id')
-
-  if (!latestOrder || String(latestOrder._id) !== String(order._id)) {
+  if (order.feedback) {
     return res.status(400).json({
       code: 'INVALID',
-      message: 'Feedback is only available on your latest order.',
+      message: 'Feedback has already been submitted for this order.',
     })
   }
 

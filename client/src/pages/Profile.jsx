@@ -274,13 +274,6 @@ export default function Profile() {
     () => groupOrdersByDay(filteredOrders),
     [filteredOrders],
   );
-  const latestOrderId = useMemo(() => {
-    if (!orders.length) return "";
-    return [...orders]
-      .sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )[0]?._id || "";
-  }, [orders]);
 
   const replaceOrderInState = useCallback((nextOrder) => {
     setOrders((prev) =>
@@ -462,6 +455,10 @@ export default function Profile() {
   };
 
   const handleSubmitFeedback = async (order) => {
+    if (order.feedback?.rating) {
+      return;
+    }
+
     const draft = feedbackDrafts[order._id] || ensureFeedbackDraft(order);
 
     if (!draft.rating) {
@@ -773,9 +770,10 @@ export default function Profile() {
                 {group.entries.map((order) => {
                   const isEditable = isOrderEditableForCustomer(order.status);
                   const isEditing = editingOrderId === order._id;
-                  const canShowFeedback = order.status === "Completed" && order._id === latestOrderId;
+                  const hasSubmittedFeedback = Boolean(order.feedback?.rating);
+                  const canShowFeedback = order.status === "Completed";
                   const isFeedbackDismissed =
-                    !order.feedback?.rating &&
+                    !hasSubmittedFeedback &&
                     dismissedFeedbackOrderIds.includes(order._id);
                   const editDraft =
                     orderDrafts[order._id] || buildEditableOrderDraft(order);
@@ -1089,8 +1087,9 @@ export default function Profile() {
                                 Order Feedback
                               </p>
                               <p className="mt-1 text-xs text-cocoa/65">
-                                Rate this order and send a quick note to the cafe
-                                team.
+                                {hasSubmittedFeedback
+                                  ? "Your feedback for this order has already been shared with the cafe team."
+                                  : "Rate this order and send a quick note to the cafe team."}
                               </p>
                             </div>
                             {order.feedback?.submittedAt && (
@@ -1101,69 +1100,91 @@ export default function Profile() {
                           </div>
 
                           <div className="mt-4 space-y-4">
-                            <div>
-                              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
-                                Your Rating
-                              </p>
-                              <OrderStars
-                                value={feedbackDraft.rating}
-                                onChange={(rating) =>
-                                  handleFeedbackChange(order._id, { rating })
-                                }
-                                className="mt-2"
-                              />
-                            </div>
-
-                            <div>
-                              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
-                                Notes for the team
-                              </p>
-                              <Textarea
-                                rows="3"
-                                placeholder="Tell us how the order went."
-                                value={feedbackDraft.comment}
-                                onChange={(event) =>
-                                  handleFeedbackChange(order._id, {
-                                    comment: event.target.value,
-                                  })
-                                }
-                              />
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-3">
-                              <Button
-                                size="sm"
-                                disabled={submittingFeedbackOrderId === order._id}
-                                onClick={() => handleSubmitFeedback(order)}
-                              >
-                                {submittingFeedbackOrderId === order._id
-                                  ? "Sending..."
-                                  : order.feedback
-                                    ? "Update Feedback"
-                                    : "Send Feedback"}
-                              </Button>
-                              {!order.feedback?.rating && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => dismissFeedbackPanel(order._id)}
-                                >
-                                  Dismiss
-                                </Button>
-                              )}
-                              {order.feedback?.rating ? (
-                                <div className="flex items-center gap-2 text-xs text-cocoa/68">
-                                  <OrderStars
-                                    value={Number(order.feedback.rating)}
-                                    readOnly
-                                  />
-                                  <span>
-                                    Shared with the cafe team under your order
-                                    details.
-                                  </span>
+                            {hasSubmittedFeedback ? (
+                              <>
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
+                                    Your Rating
+                                  </p>
+                                  <div className="mt-2 flex items-center gap-2 text-xs text-cocoa/68">
+                                    <OrderStars
+                                      value={Number(order.feedback.rating)}
+                                      readOnly
+                                    />
+                                    <span>
+                                      Shared with the cafe team under your order
+                                      details.
+                                    </span>
+                                  </div>
                                 </div>
-                              ) : null}
-                            </div>
+
+                                <div>
+                                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
+                                    Notes for the team
+                                  </p>
+                                  <div
+                                    className={cn(
+                                      "rounded-[1rem] border px-3 py-3 text-sm leading-6",
+                                      isDayTheme
+                                        ? "border-[#3f7674]/12 bg-white/55 text-cocoa/78"
+                                        : "border-gold/12 bg-[rgba(21,16,14,0.68)] text-cocoa/74",
+                                    )}
+                                  >
+                                    {order.feedback.comment || "No notes were added."}
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
+                                    Your Rating
+                                  </p>
+                                  <OrderStars
+                                    value={feedbackDraft.rating}
+                                    onChange={(rating) =>
+                                      handleFeedbackChange(order._id, { rating })
+                                    }
+                                    className="mt-2"
+                                  />
+                                </div>
+
+                                <div>
+                                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-cocoa/60">
+                                    Notes for the team
+                                  </p>
+                                  <Textarea
+                                    rows="3"
+                                    placeholder="Tell us how the order went."
+                                    value={feedbackDraft.comment}
+                                    onChange={(event) =>
+                                      handleFeedbackChange(order._id, {
+                                        comment: event.target.value,
+                                      })
+                                    }
+                                  />
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-3">
+                                  <Button
+                                    size="sm"
+                                    disabled={submittingFeedbackOrderId === order._id}
+                                    onClick={() => handleSubmitFeedback(order)}
+                                  >
+                                    {submittingFeedbackOrderId === order._id
+                                      ? "Sending..."
+                                      : "Send Feedback"}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => dismissFeedbackPanel(order._id)}
+                                  >
+                                    Dismiss
+                                  </Button>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       )}
