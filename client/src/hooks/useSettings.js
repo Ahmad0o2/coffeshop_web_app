@@ -9,6 +9,15 @@ const fetchSettings = async () => {
 };
 
 const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
+let sharedSocket = null;
+
+const getSharedSocket = () => {
+  if (!sharedSocket) {
+    sharedSocket = io(socketUrl);
+  }
+
+  return sharedSocket;
+};
 
 export default function useSettings() {
   const queryClient = useQueryClient();
@@ -18,7 +27,7 @@ export default function useSettings() {
   });
 
   useEffect(() => {
-    const socket = io(socketUrl);
+    const socket = getSharedSocket();
     const handler = (payload) => {
       if (payload?.settings) {
         queryClient.setQueryData(["settings"], payload.settings);
@@ -29,7 +38,6 @@ export default function useSettings() {
     socket.on("settings:changed", handler);
     return () => {
       socket.off("settings:changed", handler);
-      socket.disconnect();
     };
   }, [queryClient]);
 

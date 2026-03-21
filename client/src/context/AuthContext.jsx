@@ -133,7 +133,8 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!token || !user?.id) return;
-    const socket = io(socketUrl, buildSocketConnectionOptions(user));
+    const socketAuthOptions = buildSocketConnectionOptions(user);
+    const socket = io(socketUrl, socketAuthOptions);
 
     const handleStaffChange = (payload) => {
       if (String(payload?.subjectId) === String(user.id)) {
