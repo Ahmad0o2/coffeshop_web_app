@@ -16,28 +16,31 @@ import AdminActivity from "./pages/AdminActivity";
 import Gallery from "./pages/Gallery";
 import Location from "./pages/Location";
 import NotFound from "./pages/NotFound";
+import ErrorBoundary from "./components/common/ErrorBoundary";
+
+const withRouteBoundary = (element) => <ErrorBoundary>{element}</ErrorBoundary>;
 
 function App() {
   return (
     <Routes>
-      <Route element={<MainLayout />}>
-        <Route path="/" element={<Home />} />
-        <Route path="/menu" element={<Menu />} />
-        <Route path="/menu/:id" element={<ProductDetail />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/orders/:id" element={<OrderStatus />} />
-        <Route path="/sign-in" element={<Auth />} />
-        <Route path="/orders" element={<Profile />} />
+      <Route element={withRouteBoundary(<MainLayout />)}>
+        <Route path="/" element={withRouteBoundary(<Home />)} />
+        <Route path="/menu" element={withRouteBoundary(<Menu />)} />
+        <Route path="/menu/:id" element={withRouteBoundary(<ProductDetail />)} />
+        <Route path="/cart" element={withRouteBoundary(<Cart />)} />
+        <Route path="/checkout" element={withRouteBoundary(<Checkout />)} />
+        <Route path="/orders/:id" element={withRouteBoundary(<OrderStatus />)} />
+        <Route path="/sign-in" element={withRouteBoundary(<Auth />)} />
+        <Route path="/orders" element={withRouteBoundary(<Profile />)} />
         <Route path="/profile" element={<Navigate to="/orders" replace />} />
-        <Route path="/rewards" element={<Rewards />} />
-        <Route path="/events" element={<Events />} />
-        <Route path="/gallery" element={<Gallery />} />
-        <Route path="/location" element={<Location />} />
-        <Route path="/admin" element={<AdminDashboard />} />
-        <Route path="/admin/activity" element={<AdminActivity />} />
-        <Route path="/points" element={<Points />} />
-        <Route path="*" element={<NotFound />} />
+        <Route path="/rewards" element={withRouteBoundary(<Rewards />)} />
+        <Route path="/events" element={withRouteBoundary(<Events />)} />
+        <Route path="/gallery" element={withRouteBoundary(<Gallery />)} />
+        <Route path="/location" element={withRouteBoundary(<Location />)} />
+        <Route path="/admin" element={withRouteBoundary(<AdminDashboard />)} />
+        <Route path="/admin/activity" element={withRouteBoundary(<AdminActivity />)} />
+        <Route path="/points" element={withRouteBoundary(<Points />)} />
+        <Route path="*" element={withRouteBoundary(<NotFound />)} />
       </Route>
     </Routes>
   );

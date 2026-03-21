@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { flushSync } from 'react-dom'
+import useAuth from '../hooks/useAuth'
 import { getUnitPrice } from '../utils/pricing'
 import { CartContext } from './cart-context'
 
@@ -40,6 +41,7 @@ const syncStateUpdate = (updater) => {
 }
 
 export function CartProvider({ children }) {
+  const { user } = useAuth()
   const [items, setItems] = useState(() => {
     try {
       const stored = localStorage.getItem('cartItems')
@@ -57,6 +59,7 @@ export function CartProvider({ children }) {
       return []
     }
   })
+  const previousUserIdRef = useRef(user?.id ?? null)
 
   const addItem = useCallback((product, options = {}) => {
     const selectedSize = options.selectedSize || ''
@@ -237,6 +240,16 @@ export function CartProvider({ children }) {
       setSelectedRewardRedemptions([])
     })
   }, [])
+
+  useEffect(() => {
+    const nextUserId = user?.id ?? null
+
+    if (previousUserIdRef.current !== nextUserId) {
+      clearCart()
+    }
+
+    previousUserIdRef.current = nextUserId
+  }, [clearCart, user?.id])
 
   const total = useMemo(
     () =>
