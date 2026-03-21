@@ -9,6 +9,7 @@ This repository contains both parts of the app:
 ## Table of Contents
 - [Project Overview](#project-overview)
 - [Main Features](#main-features)
+- [Visual Preview](#visual-preview)
 - [Current Product Decisions](#current-product-decisions)
 - [Tech Stack](#tech-stack)
 - [Repository Structure](#repository-structure)
@@ -17,6 +18,7 @@ This repository contains both parts of the app:
 - [Roles and Access](#roles-and-access)
 - [Important User Flows](#important-user-flows)
 - [API Overview](#api-overview)
+- [API Examples](#api-examples)
 - [Useful Commands](#useful-commands)
 - [Troubleshooting](#troubleshooting)
 - [Deployment Notes](#deployment-notes)
@@ -61,6 +63,15 @@ The dashboard is intentionally CMS-like, so non-technical staff can manage produ
 - Socket.IO-based updates for orders and dashboard data
 - Live refreshes after order status changes
 - Real-time admin indicators for incoming orders and inventory warnings
+
+## Visual Preview
+These images come from the current project assets and give a quick feel for the visual direction used in the app.
+
+<p align="center">
+  <img src="client/public/photo_for_home.webp" alt="Home hero visual" width="31%" />
+  <img src="client/public/loyal_card_image.webp" alt="Rewards visual" width="31%" />
+  <img src="client/public/front_door.webp" alt="Location visual" width="31%" />
+</p>
 
 ## Current Product Decisions
 These are current app behaviors that are intentional right now:
@@ -267,6 +278,69 @@ These are the main API groups:
 - `PATCH /api/v1/orders/:id` -> edit an existing order
 - `PATCH /api/v1/orders/:id/status` -> admin updates order status
 - `PUT /api/v1/admin/settings` -> update home media and settings
+
+## API Examples
+These examples assume:
+- backend URL: `http://localhost:5000`
+- API base: `http://localhost:5000/api/v1`
+- JSON requests unless stated otherwise
+
+### 1. Register with email OTP
+Request an OTP:
+
+```bash
+curl -X POST http://localhost:5000/api/v1/auth/otp/request \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"user@example.com\",\"purpose\":\"register\"}"
+```
+
+Complete registration:
+
+```bash
+curl -X POST http://localhost:5000/api/v1/auth/register \
+  -H "Content-Type: application/json" \
+  -d "{\"fullName\":\"Test User\",\"email\":\"user@example.com\",\"phone\":\"0790000000\",\"password\":\"strongpass123\",\"otp\":\"123456\"}"
+```
+
+### 2. Sign in
+```bash
+curl -X POST http://localhost:5000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"user@example.com\",\"password\":\"strongpass123\"}"
+```
+
+### 3. Create an order
+```bash
+curl -X POST http://localhost:5000/api/v1/orders \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"items\":[{\"productId\":\"PRODUCT_ID\",\"quantity\":1,\"selectedSize\":\"Regular\",\"selectedAddOns\":[]}],\"paymentMethod\":\"Cash\",\"specialInstructions\":\"No sugar\"}"
+```
+
+### 4. Update an order before it is locked
+```bash
+curl -X PATCH http://localhost:5000/api/v1/orders/ORDER_ID \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"items\":[{\"productId\":\"PRODUCT_ID\",\"quantity\":2,\"selectedSize\":\"Large\",\"selectedAddOns\":[\"Extra Shot\"]}],\"specialInstructions\":\"Less ice\"}"
+```
+
+### 5. Reset a password with OTP
+Request reset OTP:
+
+```bash
+curl -X POST http://localhost:5000/api/v1/auth/otp/request \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"user@example.com\",\"purpose\":\"reset-password\"}"
+```
+
+Reset password:
+
+```bash
+curl -X POST http://localhost:5000/api/v1/auth/password-reset \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"user@example.com\",\"otp\":\"123456\",\"newPassword\":\"newstrongpass123\"}"
+```
 
 ## Useful Commands
 ### Frontend

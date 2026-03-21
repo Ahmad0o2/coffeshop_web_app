@@ -117,6 +117,49 @@ GET /api/health
 - `/api/v1/categories`
 - `/api/v1/settings`
 
+## Request Examples
+These examples assume:
+- backend URL: `http://localhost:5000`
+- API base: `http://localhost:5000/api/v1`
+
+### Request an email OTP
+```bash
+curl -X POST http://localhost:5000/api/v1/auth/otp/request \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"user@example.com\",\"purpose\":\"register\"}"
+```
+
+### Login
+```bash
+curl -X POST http://localhost:5000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"user@example.com\",\"password\":\"strongpass123\"}"
+```
+
+### Create an order
+```bash
+curl -X POST http://localhost:5000/api/v1/orders \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"items\":[{\"productId\":\"PRODUCT_ID\",\"quantity\":1,\"selectedSize\":\"Regular\",\"selectedAddOns\":[]}],\"paymentMethod\":\"Cash\"}"
+```
+
+### Update order status as admin/staff
+```bash
+curl -X PATCH http://localhost:5000/api/v1/orders/ORDER_ID/status \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"status\":\"Ready\"}"
+```
+
+### Update staff access
+```bash
+curl -X PATCH http://localhost:5000/api/v1/admin/staff/STAFF_ID \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"role\":\"Staff\",\"permissions\":[\"manageOrders\",\"manageEvents\"],\"password\":\"newstrongpass123\"}"
+```
+
 ## Important Server Behaviors
 ### Authentication
 - JWT-based auth

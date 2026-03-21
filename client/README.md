@@ -62,6 +62,15 @@ client/
 - `/sign-in` -> sign in / register / reset password
 - `/admin` -> admin dashboard
 
+## Visual Preview Assets
+The repository already includes brand visuals used across the app, for example:
+- `client/public/photo_for_home.webp`
+- `client/public/loyal_card_image.webp`
+- `client/public/front_door.webp`
+- `client/public/brand_logo.webp`
+
+These are useful when reviewing the visual direction quickly from GitHub.
+
 ## Environment
 Create `client/.env` from `client/.env.example`.
 
