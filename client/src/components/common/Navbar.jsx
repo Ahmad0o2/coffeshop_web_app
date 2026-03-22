@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { NavLink, Link, useLocation } from "react-router-dom";
 import useCart from "../../hooks/useCart";
 import useAuth from "../../hooks/useAuth";
@@ -29,7 +30,8 @@ const socketUrl = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
 export default function Navbar() {
   const { items, lastAdded, selectedRewardRedemptions } = useCart();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, updateLanguagePreference } = useAuth();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [menuVisible, setMenuVisible] = useState(false);
@@ -52,6 +54,7 @@ export default function Navbar() {
   const redeemedReadyCount = rewardHistory.filter(
     (entry) => entry.status === "Redeemed",
   ).length;
+  const currentLanguage = i18n.resolvedLanguage === "ar" ? "ar" : "en";
   const isDashboardUser = ["Admin", "Staff"].includes(user?.role);
   const showAdminMobileNav = isDashboardUser && !isDesktopViewport;
   const isAdmin = user?.role === "Admin";
@@ -143,22 +146,26 @@ export default function Navbar() {
           : "border-gold/12 bg-obsidian/45 text-cream hover:border-gold/22 hover:bg-obsidian/60",
     ].join(" ");
   const adminMobileNavItems = [
-    { to: "/admin", label: "Dashboard", enabled: isDashboardUser },
+    { to: "/admin", label: t("common.dashboard"), enabled: isDashboardUser },
     {
       to: "/admin?tab=orders",
-      label: "Orders",
+      label: t("common.orders"),
       enabled: canManageOrders,
       alertCount: newAdminOrdersCount,
     },
-    { to: "/admin?tab=products", label: "Products", enabled: canManageProducts },
-    { to: "/admin?tab=inventory", label: "Inventory", enabled: canManageProducts },
-    { to: "/admin?tab=rewards", label: "Rewards", enabled: canManageRewards },
-    { to: "/admin?tab=brand", label: "Home Media", enabled: canManageBrand },
-    { to: "/admin?tab=gallery", label: "Gallery", enabled: canManageBrand },
-    { to: "/admin?tab=events", label: "Events", enabled: canManageEvents },
-    { to: "/admin?tab=manage", label: "Manage", enabled: isAdmin },
-    { to: "/admin/activity", label: "Activity Log", enabled: isAdmin },
+    { to: "/admin?tab=products", label: t("common.products"), enabled: canManageProducts },
+    { to: "/admin?tab=inventory", label: t("common.inventory"), enabled: canManageProducts },
+    { to: "/admin?tab=rewards", label: t("common.rewards"), enabled: canManageRewards },
+    { to: "/admin?tab=brand", label: t("common.homeMedia"), enabled: canManageBrand },
+    { to: "/admin?tab=gallery", label: t("common.gallery"), enabled: canManageBrand },
+    { to: "/admin?tab=events", label: t("common.events"), enabled: canManageEvents },
+    { to: "/admin?tab=manage", label: t("common.manage"), enabled: isAdmin },
+    { to: "/admin/activity", label: t("common.activityLog"), enabled: isAdmin },
   ].filter((item) => item.enabled);
+
+  const handleLanguageToggle = () => {
+    void updateLanguagePreference(currentLanguage === "ar" ? "en" : "ar");
+  };
 
   useEffect(() => {
     if (!isAuthenticated || !canManageOrders || !user?.id) return undefined;
@@ -267,33 +274,33 @@ export default function Navbar() {
 
           <div className="hidden items-center gap-6 text-sm font-medium">
             <NavLink to="/" className={navClass} end>
-              Home
+              {t("common.home")}
             </NavLink>
             <NavLink to="/menu" className={navClass}>
-              Menu
+              {t("common.menu")}
             </NavLink>
             <NavLink to="/gallery" className={navClass}>
-              Gallery
+              {t("common.gallery")}
             </NavLink>
             {isAuthenticated && (
               <NavLink to="/rewards" className={navClass}>
-                Rewards
+                {t("common.rewards")}
               </NavLink>
             )}
             {isAuthenticated && (
               <NavLink to="/events" className={navClass}>
-                Events
+                {t("common.events")}
               </NavLink>
             )}
             <NavLink to="/location" className={navClass}>
-              Location
+              {t("common.location")}
             </NavLink>
             {isAuthenticated && (
               <>
                 {isDashboardUser && (
                   <NavLink to="/admin" className={navClass}>
                     <span className="inline-flex items-center gap-2">
-                      <span>Admin Dashboard</span>
+                      <span>{t("common.adminDashboard")}</span>
                       {canManageOrders && newAdminOrdersCount > 0 && (
                         <span className="inline-flex min-w-5 items-center justify-center rounded-full bg-gold px-1.5 py-0.5 text-[10px] font-semibold text-obsidian">
                           {newAdminOrdersCount}
@@ -303,21 +310,28 @@ export default function Navbar() {
                   </NavLink>
                 )}
                 <NavLink to="/orders" className={navClass}>
-                  Orders
+                  {t("common.orders")}
                 </NavLink>
               </>
             )}
-            <button className="pill">AR</button>
+            <button
+              type="button"
+              className="pill"
+              aria-label={t("navbar.languageToggleLabel")}
+              onClick={handleLanguageToggle}
+            >
+              {currentLanguage.toUpperCase()}
+            </button>
             <Button variant="ghost" size="sm" className={desktopThemeButtonClass} onClick={toggleTheme}>
               {theme === "day" ? (
                 <>
                   <MoonIcon className="h-4 w-4" />
-                  Night
+                  {t("common.night")}
                 </>
               ) : (
                 <>
                   <SunIcon className="h-4 w-4" />
-                  Day
+                  {t("common.day")}
                 </>
               )}
             </Button>
@@ -329,13 +343,7 @@ export default function Navbar() {
                 <Link
                   to="/cart"
                   className={mobileIconButtonClass}
-                  title={
-                    redeemedReadyCount > 0
-                      ? `${redeemedReadyCount} redeemed reward${
-                          redeemedReadyCount > 1 ? "s are" : " is"
-                        } ready for checkout`
-                      : "Open cart"
-                  }
+                  title={redeemedReadyCount > 0 ? t("navbar.rewardReady", { count: redeemedReadyCount }) : t("navbar.openCart")}
                 >
                   <CartIcon className="h-4 w-4" />
                   {itemCount > 0 && (
@@ -356,8 +364,7 @@ export default function Navbar() {
                 )}
                 {!lastAdded && redeemedReadyCount > 0 && (
                   <div className={rewardReadyBubbleClass}>
-                    {redeemedReadyCount} redeemed reward
-                    {redeemedReadyCount > 1 ? "s" : ""} ready
+                    {t("navbar.rewardReady", { count: redeemedReadyCount })}
                   </div>
                 )}
               </div>
@@ -366,7 +373,7 @@ export default function Navbar() {
             <button
               onClick={handleOpenMenu}
               className={mobileCloseClass}
-              aria-label="Open menu"
+              aria-label={t("navbar.openMenu")}
             >
               <span className={`${mobileMenuCircleClass} relative`}>
                 <MenuIcon className={mobileMenuIconClass} />
@@ -406,9 +413,13 @@ export default function Navbar() {
           >
             <div className={mobileDrawerHeaderClass}>
               <p className={mobileDrawerTitleClass}>
-                {showAdminMobileNav ? "Admin" : "Menu"}
+                {showAdminMobileNav ? t("navbar.drawerTitleAdmin") : t("navbar.drawerTitleMenu")}
               </p>
-              <button className={mobileCloseClass} onClick={handleCloseMenu}>
+              <button
+                className={mobileCloseClass}
+                onClick={handleCloseMenu}
+                aria-label={t("navbar.closeMenu")}
+              >
                 <CloseIcon className={isDayTheme ? "h-4 w-4 text-espresso" : "h-4 w-4 text-cream"} />
               </button>
             </div>
@@ -418,7 +429,7 @@ export default function Navbar() {
                   {showAdminMobileNav ? (
                     <>
                       <div className="space-y-2">
-                        <p className={adminMenuSectionTitleClass}>Admin Navigation</p>
+                        <p className={adminMenuSectionTitleClass}>{t("common.adminNavigation")}</p>
                         <div className="space-y-2">
                           {adminMobileNavItems.map((item) => (
                             <Link
@@ -446,7 +457,7 @@ export default function Navbar() {
                       </div>
 
                       <div className="space-y-2 pt-2">
-                        <p className={adminMenuSectionTitleClass}>Cafe Pages</p>
+                        <p className={adminMenuSectionTitleClass}>{t("common.cafePages")}</p>
                         <NavLink
                           to="/"
                           className={({ isActive }) =>
@@ -455,7 +466,7 @@ export default function Navbar() {
                           onClick={handleCloseMenu}
                           end
                         >
-                          <span>Home</span>
+                          <span>{t("common.home")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
                             &gt;
                           </span>
@@ -467,7 +478,7 @@ export default function Navbar() {
                           }
                           onClick={handleCloseMenu}
                         >
-                          <span>Menu</span>
+                          <span>{t("common.menu")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
                             &gt;
                           </span>
@@ -479,7 +490,7 @@ export default function Navbar() {
                           }
                           onClick={handleCloseMenu}
                         >
-                          <span>Gallery</span>
+                          <span>{t("common.gallery")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
                             &gt;
                           </span>
@@ -491,7 +502,7 @@ export default function Navbar() {
                           }
                           onClick={handleCloseMenu}
                         >
-                          <span>Rewards</span>
+                          <span>{t("common.rewards")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
                             &gt;
                           </span>
@@ -503,7 +514,7 @@ export default function Navbar() {
                           }
                           onClick={handleCloseMenu}
                         >
-                          <span>Events</span>
+                          <span>{t("common.events")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
                             &gt;
                           </span>
@@ -515,7 +526,7 @@ export default function Navbar() {
                           }
                           onClick={handleCloseMenu}
                         >
-                          <span>Location</span>
+                          <span>{t("common.location")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
                             &gt;
                           </span>
@@ -523,7 +534,7 @@ export default function Navbar() {
                       </div>
 
                       <div className="space-y-2 pt-2">
-                        <p className={adminMenuSectionTitleClass}>Account</p>
+                        <p className={adminMenuSectionTitleClass}>{t("common.account")}</p>
                         <NavLink
                           to="/orders"
                           className={({ isActive }) =>
@@ -531,7 +542,7 @@ export default function Navbar() {
                           }
                           onClick={handleCloseMenu}
                         >
-                          <span>Orders</span>
+                          <span>{t("common.orders")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
                             &gt;
                           </span>
@@ -543,7 +554,7 @@ export default function Navbar() {
                           }
                           onClick={handleCloseMenu}
                         >
-                          <span>Cart</span>
+                          <span>{t("common.cart")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>
                             &gt;
                           </span>
@@ -553,7 +564,7 @@ export default function Navbar() {
                   ) : (
                     <>
                       <div className="space-y-2">
-                        <p className={adminMenuSectionTitleClass}>Cafe Pages</p>
+                        <p className={adminMenuSectionTitleClass}>{t("common.cafePages")}</p>
                         <NavLink
                           to="/"
                           className={({ isActive }) =>
@@ -562,7 +573,7 @@ export default function Navbar() {
                           onClick={handleCloseMenu}
                           end
                         >
-                          <span>Home</span>
+                          <span>{t("common.home")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>&gt;</span>
                         </NavLink>
                         <NavLink
@@ -572,7 +583,7 @@ export default function Navbar() {
                           }
                           onClick={handleCloseMenu}
                         >
-                          <span>Menu</span>
+                          <span>{t("common.menu")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>&gt;</span>
                         </NavLink>
                         <NavLink
@@ -582,7 +593,7 @@ export default function Navbar() {
                           }
                           onClick={handleCloseMenu}
                         >
-                          <span>Gallery</span>
+                          <span>{t("common.gallery")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>&gt;</span>
                         </NavLink>
                         {isAuthenticated && (
@@ -593,7 +604,7 @@ export default function Navbar() {
                             }
                             onClick={handleCloseMenu}
                           >
-                            <span>Rewards</span>
+                            <span>{t("common.rewards")}</span>
                             <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>&gt;</span>
                           </NavLink>
                         )}
@@ -605,7 +616,7 @@ export default function Navbar() {
                             }
                             onClick={handleCloseMenu}
                           >
-                            <span>Events</span>
+                            <span>{t("common.events")}</span>
                             <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>&gt;</span>
                           </NavLink>
                         )}
@@ -616,13 +627,13 @@ export default function Navbar() {
                           }
                           onClick={handleCloseMenu}
                         >
-                          <span>Location</span>
+                          <span>{t("common.location")}</span>
                           <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>&gt;</span>
                         </NavLink>
                       </div>
 
                       <div className="space-y-2 pt-2">
-                        <p className={adminMenuSectionTitleClass}>Account</p>
+                        <p className={adminMenuSectionTitleClass}>{t("common.account")}</p>
                         {isDashboardUser && (
                           <NavLink
                             to="/admin"
@@ -631,7 +642,7 @@ export default function Navbar() {
                             }
                             onClick={handleCloseMenu}
                           >
-                            <span>Admin Dashboard</span>
+                            <span>{t("common.adminDashboard")}</span>
                             <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>&gt;</span>
                           </NavLink>
                         )}
@@ -644,7 +655,7 @@ export default function Navbar() {
                               }
                               onClick={handleCloseMenu}
                             >
-                              <span>Orders</span>
+                              <span>{t("common.orders")}</span>
                               <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>&gt;</span>
                             </NavLink>
                             <NavLink
@@ -654,7 +665,7 @@ export default function Navbar() {
                               }
                               onClick={handleCloseMenu}
                             >
-                              <span>Cart</span>
+                              <span>{t("common.cart")}</span>
                               <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>&gt;</span>
                             </NavLink>
                           </>
@@ -666,14 +677,21 @@ export default function Navbar() {
                             }
                             onClick={handleCloseMenu}
                           >
-                            <span>Sign in</span>
+                            <span>{t("common.signIn")}</span>
                             <span className={isDayTheme ? "text-[#315f5e]/60" : "text-cocoa/45"}>&gt;</span>
                           </NavLink>
                         )}
                       </div>
                     </>
                   )}
-                  <button className="pill w-fit">AR</button>
+                  <button
+                    type="button"
+                    className="pill w-fit"
+                    aria-label={t("navbar.languageToggleLabel")}
+                    onClick={handleLanguageToggle}
+                  >
+                    {currentLanguage.toUpperCase()}
+                  </button>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -683,12 +701,12 @@ export default function Navbar() {
                     {theme === "day" ? (
                       <>
                         <MoonIcon className="h-4 w-4" />
-                        Night
+                        {t("common.night")}
                       </>
                     ) : (
                       <>
                         <SunIcon className="h-4 w-4" />
-                        Day
+                        {t("common.day")}
                       </>
                     )}
                   </Button>
@@ -701,7 +719,7 @@ export default function Navbar() {
                         handleCloseMenu();
                       }}
                     >
-                      Logout
+                      {t("common.logout")}
                     </Button>
                   )}
                 </div>

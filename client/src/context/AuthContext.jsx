@@ -5,6 +5,7 @@ import api, {
   setAuthSessionHandler,
 } from "../services/api";
 import { connectSocket } from "../services/socketClient";
+import i18n, { normalizeLanguage } from "../i18n";
 import {
   clearAuthSession,
   getAccessToken,
@@ -21,6 +22,9 @@ export function AuthProvider({ children }) {
   const [isBootstrapping, setIsBootstrapping] = useState(true);
 
   const saveAuth = useCallback((nextUser, nextToken, nextRefreshToken) => {
+    if (nextUser?.languagePreference) {
+      void i18n.changeLanguage(normalizeLanguage(nextUser.languagePreference));
+    }
     setUser(nextUser);
     setToken(nextToken);
     storeAuthSession({
@@ -34,6 +38,9 @@ export function AuthProvider({ children }) {
     setUser((prev) => {
       if (!prev) return prev;
       const nextUser = { ...prev, ...patch };
+      if (nextUser.languagePreference) {
+        void i18n.changeLanguage(normalizeLanguage(nextUser.languagePreference));
+      }
       storeAuthSession({
         user: nextUser,
         token: getAccessToken(),
@@ -42,6 +49,33 @@ export function AuthProvider({ children }) {
       return nextUser;
     });
   }, []);
+
+  const updateLanguagePreference = useCallback(
+    async (language) => {
+      const nextLanguage = normalizeLanguage(language);
+      await i18n.changeLanguage(nextLanguage);
+
+      if (!user) {
+        return nextLanguage;
+      }
+
+      try {
+        const { data } = await api.put("/auth/profile", {
+          languagePreference: nextLanguage,
+        });
+        if (data?.user) {
+          mergeUser(data.user);
+        } else {
+          mergeUser({ languagePreference: nextLanguage });
+        }
+      } catch {
+        mergeUser({ languagePreference: nextLanguage });
+      }
+
+      return nextLanguage;
+    },
+    [mergeUser, user],
+  );
 
   const login = useCallback(async (payload) => {
     const { data } = await api.post("/auth/login", payload);
@@ -136,13 +170,17 @@ export function AuthProvider({ children }) {
   }, [saveAuth]);
 
   useEffect(() => {
-    const socket = connectSocket(socketUrl, {
-      auth: token && user?.id
-        ? { userId: String(user.id), role: user.role }
-        : {},
-    });
+    if (!user?.languagePreference) return;
 
+    void i18n.changeLanguage(normalizeLanguage(user.languagePreference));
+  }, [user?.languagePreference]);
+
+  useEffect(() => {
     if (!token || !user?.id) return undefined;
+
+    const socket = connectSocket(socketUrl, {
+      auth: { userId: String(user.id), role: user.role },
+    });
 
     const handleStaffChange = (payload) => {
       if (String(payload?.subjectId) === String(user.id)) {
@@ -184,9 +222,19 @@ export function AuthProvider({ children }) {
       login,
       register,
       logout,
+      updateLanguagePreference,
       refreshProfile,
     }),
-    [user, token, isBootstrapping, login, register, logout, refreshProfile],
+    [
+      user,
+      token,
+      isBootstrapping,
+      login,
+      register,
+      logout,
+      updateLanguagePreference,
+      refreshProfile,
+    ],
   );
 
   if (isBootstrapping) {

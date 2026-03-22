@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import useAuth from "../../hooks/useAuth";
 import { Button } from "../ui/button";
 import { getDisplayPrice, normalizeSizePrices } from "../../utils/pricing";
@@ -17,6 +18,7 @@ export default function ProductCard({
   customActions = null,
 }) {
   const { isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const isAvailable = canOrderProduct(product);
@@ -54,7 +56,7 @@ export default function ProductCard({
       className="group card relative flex h-full cursor-pointer flex-col overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-cardHover"
       role="link"
       tabIndex={0}
-      aria-label={`Open ${product.name}`}
+      aria-label={t("productCard.openProduct", { name: product.name })}
       onClick={handleCardClick}
       onKeyDown={handleCardKeyDown}
     >
@@ -75,7 +77,7 @@ export default function ProductCard({
           <div className="absolute -inset-9 bg-gradient-to-t from-obsidian/70 via-obsidian/10 to-transparent" />
           <div className="absolute left-4 top-4 flex flex-wrap gap-2">
             <span className="pill bg-obsidian/80">
-              {product.categoryName || "Coffee"}
+              {product.categoryName || t("productCard.categoryFallback")}
             </span>
             {!isAvailable && (
               <span className="pill bg-obsidian/80">
@@ -84,12 +86,12 @@ export default function ProductCard({
             )}
             {isAvailable && isLowStock && inventoryQuantity !== null && (
               <span className="pill bg-obsidian/80">
-                Only {inventoryQuantity} left
+                {t("productCard.onlyLeft", { count: inventoryQuantity })}
               </span>
             )}
           </div>
           <div className="absolute bottom-4 left-4 rounded-full bg-obsidian/70 px-3 py-1 text-xs font-semibold text-cream">
-            {isFrom ? "From " : ""}
+            {isFrom ? t("productCard.from") : ""}
             {price?.toFixed ? price.toFixed(2) : price} JD
           </div>
         </div>
@@ -127,9 +129,9 @@ export default function ProductCard({
                 ? getInventoryStatusLabel(product)
                 : isAuthenticated
                   ? orderEditSession?.orderId
-                    ? "Customize for order"
-                    : "Add to cart"
-                  : "Sign in to order"}
+                    ? t("productCard.customizeForOrder")
+                    : t("productCard.addToCart")
+                  : t("productCard.signInToOrder")}
             </Button>
           )}
         </div>

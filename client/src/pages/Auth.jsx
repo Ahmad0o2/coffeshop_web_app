@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import useAuth from "../hooks/useAuth";
 import api from "../services/api";
 import useTheme from "../hooks/useTheme";
@@ -8,24 +9,10 @@ import { Input } from "../components/ui/input";
 import { cn } from "../lib/utils";
 import { getApiErrorMessage } from "../utils/apiErrors";
 
-const authModes = {
-  login: {
-    title: "Sign In",
-    subtitle: "Sign in to manage orders, rewards, and event access.",
-  },
-  register: {
-    title: "Create Account",
-    subtitle: "Create your account, verify your email, and get started.",
-  },
-  reset: {
-    title: "Reset Password",
-    subtitle: "Verify your email, then choose a new password.",
-  },
-};
-
 export default function Auth() {
   const { user, login, register, isAuthenticated } = useAuth();
   const { theme } = useTheme();
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const [mode, setMode] = useState("login");
   const [error, setError] = useState("");
@@ -92,7 +79,7 @@ export default function Auth() {
         : resetForm.email.trim();
 
     if (!email) {
-      setError("Enter your email first.");
+      setError(t("auth.messages.emailFirst"));
       return;
     }
 
@@ -114,11 +101,11 @@ export default function Auth() {
       });
       setNotice(
         data?.deliveryMode === "demo"
-          ? "Brevo fallback mode is active right now, so the code is shown inside the app."
-          : "Verification code sent to the provided email address.",
+          ? t("auth.messages.otpFallback")
+          : t("auth.messages.otpEmailSent"),
       );
     } catch (err) {
-      setError(getApiErrorMessage(err, "We couldn't send the OTP right now."));
+      setError(getApiErrorMessage(err, t("auth.messages.otpRequestFailed")));
     } finally {
       setSendingOtpFor("");
     }
@@ -133,11 +120,11 @@ export default function Auth() {
     try {
       const identifier = loginForm.identifier.trim();
       if (!identifier) {
-        setError("Enter email, username, or phone to sign in.");
+        setError(t("auth.messages.identifierRequired"));
         return;
       }
       if (!loginForm.password) {
-        setError("Password is required.");
+        setError(t("auth.messages.passwordRequired"));
         return;
       }
 
@@ -153,7 +140,7 @@ export default function Auth() {
         { replace: true },
       );
     } catch (err) {
-      setError(getApiErrorMessage(err, "Authentication failed."));
+      setError(getApiErrorMessage(err, t("auth.messages.authFailed")));
     } finally {
       setSubmitting(false);
     }
@@ -167,23 +154,23 @@ export default function Auth() {
 
     try {
       if (!registerForm.fullName.trim()) {
-        setError("Full name is required.");
+        setError(t("auth.messages.fullNameRequired"));
         return;
       }
       if (!registerForm.email.trim()) {
-        setError("Email is required.");
+        setError(t("auth.messages.emailRequired"));
         return;
       }
       if (!registerForm.phone.trim()) {
-        setError("Phone is required.");
+        setError(t("auth.messages.phoneRequired"));
         return;
       }
       if (!registerForm.password) {
-        setError("Password is required.");
+        setError(t("auth.messages.passwordRequired"));
         return;
       }
       if (!registerForm.otpCode.trim()) {
-        setError("Enter the OTP code before creating the account.");
+        setError(t("auth.messages.otpRequiredForRegister"));
         return;
       }
 
@@ -202,7 +189,7 @@ export default function Auth() {
         { replace: true },
       );
     } catch (err) {
-      setError(getApiErrorMessage(err, "We couldn't create the account."));
+      setError(getApiErrorMessage(err, t("auth.messages.registerFailed")));
     } finally {
       setSubmitting(false);
     }
@@ -216,19 +203,19 @@ export default function Auth() {
 
     try {
       if (!resetForm.email.trim()) {
-        setError("Email is required.");
+        setError(t("auth.messages.emailRequired"));
         return;
       }
       if (!resetForm.otpCode.trim()) {
-        setError("Enter the OTP code you received.");
+        setError(t("auth.messages.otpRequiredForReset"));
         return;
       }
       if (!resetForm.newPassword) {
-        setError("New password is required.");
+        setError(t("auth.messages.newPasswordRequired"));
         return;
       }
       if (resetForm.newPassword !== resetForm.confirmPassword) {
-        setError("Password confirmation does not match.");
+        setError(t("auth.messages.passwordMismatch"));
         return;
       }
 
@@ -240,7 +227,7 @@ export default function Auth() {
 
       setNotice(
         data?.message ||
-          "Password reset successful. Sign in with the new password now.",
+          t("auth.messages.resetSuccess"),
       );
       setLoginForm({
         identifier: resetForm.email.trim(),
@@ -255,10 +242,25 @@ export default function Auth() {
       setOtpNotice(null);
       setMode("login");
     } catch (err) {
-      setError(getApiErrorMessage(err, "We couldn't reset the password."));
+      setError(getApiErrorMessage(err, t("auth.messages.resetFailed")));
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const authModes = {
+    login: {
+      title: t("auth.modes.login.title"),
+      subtitle: t("auth.modes.login.subtitle"),
+    },
+    register: {
+      title: t("auth.modes.register.title"),
+      subtitle: t("auth.modes.register.subtitle"),
+    },
+    reset: {
+      title: t("auth.modes.reset.title"),
+      subtitle: t("auth.modes.reset.subtitle"),
+    },
   };
 
   const currentMode = authModes[mode];
@@ -272,14 +274,14 @@ export default function Auth() {
             className={`pill ${mode === "login" ? "border-espresso/40" : ""}`}
             onClick={() => switchMode("login")}
           >
-            Sign In
+            {t("auth.buttons.signIn")}
           </button>
           <button
             type="button"
             className={`pill ${mode === "register" ? "border-espresso/40" : ""}`}
             onClick={() => switchMode("register")}
           >
-            Register
+            {t("auth.buttons.register")}
           </button>
         </div>
 
@@ -300,8 +302,8 @@ export default function Auth() {
             <p className="font-semibold text-espresso">{otpNotice.message}</p>
             <p className="text-xs uppercase tracking-[0.18em] text-cocoa/60">
               {otpNotice.deliveryMode === "demo"
-                ? "Brevo Demo Fallback"
-                : "Email Verification"}
+                ? t("auth.messages.otpDemoFallback")
+                : t("auth.messages.otpEmailVerification")}
             </p>
             {otpNotice.demoCode && (
               <p className="text-lg font-semibold tracking-[0.2em] text-espresso">
@@ -312,7 +314,7 @@ export default function Auth() {
               <p className="text-xs text-cocoa/65">{otpNotice.note}</p>
             )}
             <p className="text-xs text-cocoa/65">
-              Email: {otpNotice.email}
+              {t("auth.messages.otpEmailLabel", { email: otpNotice.email })}
             </p>
           </div>
         )}
@@ -321,7 +323,7 @@ export default function Auth() {
           <form noValidate onSubmit={handleLogin} className="mt-6 space-y-4">
             <Input
               type="text"
-              placeholder="Email, username, or phone"
+              placeholder={t("auth.fields.identifier")}
               value={loginForm.identifier}
               onChange={(event) =>
                 setLoginForm((prev) => ({
@@ -332,7 +334,7 @@ export default function Auth() {
             />
             <Input
               type="password"
-              placeholder="Password"
+              placeholder={t("auth.fields.password")}
               value={loginForm.password}
               onChange={(event) =>
                 setLoginForm((prev) => ({
@@ -347,10 +349,10 @@ export default function Auth() {
                 className="text-sm font-medium text-cocoa/72 underline-offset-4 transition hover:text-espresso hover:underline"
                 onClick={() => switchMode("reset")}
               >
-                Forgot your password?
+                {t("auth.links.forgotPassword")}
               </button>
               <Button type="submit" disabled={submitting}>
-                {submitting ? "Signing in..." : "Sign In"}
+                {submitting ? t("auth.buttons.signingIn") : t("auth.buttons.signIn")}
               </Button>
             </div>
           </form>
@@ -360,7 +362,7 @@ export default function Auth() {
           <form noValidate onSubmit={handleRegister} className="mt-6 space-y-4">
             <Input
               type="text"
-              placeholder="Full name"
+              placeholder={t("auth.fields.fullName")}
               value={registerForm.fullName}
               onChange={(event) =>
                 setRegisterForm((prev) => ({
@@ -372,7 +374,7 @@ export default function Auth() {
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <Input
                 type="email"
-                placeholder="Email"
+                placeholder={t("auth.fields.email")}
                 value={registerForm.email}
                 onChange={(event) =>
                   setRegisterForm((prev) => ({
@@ -388,12 +390,14 @@ export default function Auth() {
                 onClick={() => requestOtp("register")}
                 className="sm:min-w-[11rem]"
               >
-                {sendingOtpFor === "register" ? "Sending..." : "Send OTP"}
+                {sendingOtpFor === "register"
+                  ? t("auth.buttons.sending")
+                  : t("auth.buttons.sendOtp")}
               </Button>
             </div>
             <Input
               type="text"
-              placeholder="Phone"
+              placeholder={t("auth.fields.phone")}
               value={registerForm.phone}
               onChange={(event) =>
                 setRegisterForm((prev) => ({
@@ -405,7 +409,7 @@ export default function Auth() {
             <Input
               type="text"
               inputMode="numeric"
-              placeholder="OTP code"
+              placeholder={t("auth.fields.otpCode")}
               value={registerForm.otpCode}
               onChange={(event) =>
                 setRegisterForm((prev) => ({
@@ -416,7 +420,7 @@ export default function Auth() {
             />
             <Input
               type="password"
-              placeholder="Password"
+              placeholder={t("auth.fields.password")}
               value={registerForm.password}
               onChange={(event) =>
                 setRegisterForm((prev) => ({
@@ -427,7 +431,7 @@ export default function Auth() {
             />
             <div className="flex justify-end">
               <Button type="submit" disabled={submitting}>
-                {submitting ? "Creating..." : "Create Account"}
+                {submitting ? t("auth.buttons.creating") : t("auth.buttons.createAccount")}
               </Button>
             </div>
           </form>
@@ -442,7 +446,7 @@ export default function Auth() {
             <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
               <Input
                 type="email"
-                placeholder="Email"
+                placeholder={t("auth.fields.email")}
                 value={resetForm.email}
                 onChange={(event) =>
                   setResetForm((prev) => ({
@@ -459,14 +463,14 @@ export default function Auth() {
                 className="sm:min-w-[11rem]"
               >
                 {sendingOtpFor === "reset-password"
-                  ? "Sending..."
-                  : "Send OTP"}
+                  ? t("auth.buttons.sending")
+                  : t("auth.buttons.sendOtp")}
               </Button>
             </div>
             <Input
               type="text"
               inputMode="numeric"
-              placeholder="OTP code"
+              placeholder={t("auth.fields.otpCode")}
               value={resetForm.otpCode}
               onChange={(event) =>
                 setResetForm((prev) => ({
@@ -477,7 +481,7 @@ export default function Auth() {
             />
             <Input
               type="password"
-              placeholder="New password"
+              placeholder={t("auth.fields.newPassword")}
               value={resetForm.newPassword}
               onChange={(event) =>
                 setResetForm((prev) => ({
@@ -488,7 +492,7 @@ export default function Auth() {
             />
             <Input
               type="password"
-              placeholder="Confirm new password"
+              placeholder={t("auth.fields.confirmPassword")}
               value={resetForm.confirmPassword}
               onChange={(event) =>
                 setResetForm((prev) => ({
@@ -503,10 +507,10 @@ export default function Auth() {
                 className="text-sm font-medium text-cocoa/72 underline-offset-4 transition hover:text-espresso hover:underline"
                 onClick={() => switchMode("login")}
               >
-                Back to sign in
+                {t("auth.links.backToSignIn")}
               </button>
               <Button type="submit" disabled={submitting}>
-                {submitting ? "Updating..." : "Reset Password"}
+                {submitting ? t("auth.buttons.updating") : t("auth.buttons.resetPassword")}
               </Button>
             </div>
           </form>

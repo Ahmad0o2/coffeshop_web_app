@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Helmet } from "react-helmet-async";
+import { useTranslation } from "react-i18next";
 import useAuth from "../hooks/useAuth";
 import useSettings from "../hooks/useSettings";
 import useRealtimeInvalidation from "../hooks/useRealtimeInvalidation";
@@ -27,24 +28,24 @@ const fetchProducts = async () => {
   return data.data || data.products || [];
 };
 
-const formatEventDate = (value) => {
+const formatEventDate = (value, locale) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "";
-  const day = date.toLocaleDateString("en-GB", { weekday: "short" });
-  const time = date.toLocaleTimeString("en-GB", {
+  const day = date.toLocaleDateString(locale, { weekday: "short" });
+  const time = date.toLocaleTimeString(locale, {
     hour: "2-digit",
     minute: "2-digit",
   });
   return `${day} - ${time}`;
 };
 
-const getGreeting = (fullName) => {
+const getGreeting = (fullName, t) => {
   if (!fullName) return "";
   const firstName = fullName.split(" ")[0];
   const hour = new Date().getHours();
-  if (hour < 12) return `Good morning, ${firstName}`;
-  if (hour < 18) return `Good afternoon, ${firstName}`;
-  return `Good evening, ${firstName}`;
+  if (hour < 12) return t("home.greetingMorning", { name: firstName });
+  if (hour < 18) return t("home.greetingAfternoon", { name: firstName });
+  return t("home.greetingEvening", { name: firstName });
 };
 
 function HomeLoading() {
@@ -59,6 +60,7 @@ function HomeLoading() {
 export default function Home() {
   const { user, isAuthenticated } = useAuth();
   const { theme } = useTheme();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
   const { data: settings, isLoading: settingsLoading } = useSettings();
@@ -187,7 +189,8 @@ export default function Home() {
     ],
   };
 
-  const greeting = isAuthenticated ? getGreeting(user?.fullName) : "";
+  const locale = i18n.resolvedLanguage === "ar" ? "ar-JO" : "en-GB";
+  const greeting = isAuthenticated ? getGreeting(user?.fullName, t) : "";
   const isDayTheme = theme === "day";
   const heroCardStyle = {
     opacity: 1,
@@ -386,17 +389,16 @@ export default function Home() {
             <div className="flex flex-col items-start gap-3">
               {greeting && <div className={greetingClass}>{greeting}</div>}
               <Badge variant="highlight" className={badgeClass}>
-                Uni Street - Irbid
+                {t("home.badgeLocation")}
               </Badge>
             </div>
             <h1 className={heroTitleClass}>
-              Warm coffee,
+              {t("home.titleLine1")}
               <br />
-              modern moments.
+              {t("home.titleLine2")}
             </h1>
             <p className={heroTextClass}>
-              Order in a few taps, settle into the space, and move between calm
-              study hours and late-night energy without losing the luxury feel.
+              {t("home.description")}
             </p>
             <div className="flex flex-wrap gap-3">
               <Button
@@ -405,27 +407,27 @@ export default function Home() {
                 size="lg"
                 className={orderNowClass}
               >
-                <Link to="/menu">Order Now</Link>
+                <Link to="/menu">{t("home.orderNow")}</Link>
               </Button>
               <Button
                 asChild
                 variant="secondary"
                 className={secondaryButtonClass}
               >
-                <Link to="/menu">View Menu</Link>
+                <Link to="/menu">{t("home.viewMenu")}</Link>
               </Button>
               <Button asChild variant="outline" className={outlineButtonClass}>
-                <Link to="/location">Open Location</Link>
+                <Link to="/location">{t("home.openLocation")}</Link>
               </Button>
             </div>
             <div className={heroMetaClass}>
               <div className="flex items-center gap-2">
                 <span className="h-2 w-2 rounded-full bg-mint" />
-                Live order updates
+                {t("home.liveOrderUpdates")}
               </div>
               <div className="flex items-center gap-2">
                 <span className={`h-2 w-2 rounded-full ${caramelDotClass}`} />
-                Study-friendly zones
+                {t("home.studyFriendlyZones")}
               </div>
             </div>
           </div>
@@ -438,7 +440,7 @@ export default function Home() {
                     className={`flex items-center gap-2.5 ${specialAccentClass}`}
                   >
                     <SparkIcon className="h-4 w-4" />
-                    <p className={specialCaptionClass}>Today's Special</p>
+                    <p className={specialCaptionClass}>{t("home.todaysSpecial")}</p>
                   </div>
                   <div className="flex flex-1 flex-col justify-center gap-4 sm:flex-row sm:items-center sm:gap-5">
                     <div className="h-24 w-24 shrink-0 overflow-hidden rounded-[1.4rem] border border-gold/20 bg-obsidian/25 shadow-card">
@@ -458,18 +460,23 @@ export default function Home() {
                     </div>
                     <div className="min-w-0 flex-1 space-y-2">
                       <h2 className={specialTitleClass}>
-                        {todaysSpecial?.name || "Cortina Selection"}
+                        {todaysSpecial?.name || t("home.selectionFallback")}
                       </h2>
                       <p className={specialDescriptionClass}>
                         {todaysSpecial?.description ||
-                          "Picked from the menu for today."}
+                          t("home.selectionFallbackDescription")}
                       </p>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-end gap-3.5 sm:gap-4">
                     <span className={specialPriceClass}>
-                      {specialDisplayPrice.isFrom ? "From " : ""}
-                      {specialDisplayPrice.price.toFixed(2)} JD
+                      {specialDisplayPrice.isFrom
+                        ? t("home.fromPrice", {
+                            price: specialDisplayPrice.price.toFixed(2),
+                          })
+                        : t("home.price", {
+                            price: specialDisplayPrice.price.toFixed(2),
+                          })}
                     </span>
                     <Button
                       asChild
@@ -482,7 +489,7 @@ export default function Home() {
                           todaysSpecial ? `/menu/${todaysSpecial._id}` : "/menu"
                         }
                       >
-                        View Item
+                        {t("home.viewItem")}
                       </Link>
                     </Button>
                   </div>
@@ -492,12 +499,12 @@ export default function Home() {
 
             <div className="grid gap-5 sm:grid-cols-2" style={infoBoxStyle}>
               <div className={infoCardClass}>
-                <p className={infoLabelClass}>Pickup</p>
-                <p className={infoValueClass}>12 minutes</p>
+                <p className={infoLabelClass}>{t("home.pickup")}</p>
+                <p className={infoValueClass}>{t("home.pickupValue")}</p>
               </div>
               <div className={infoCardClass}>
-                <p className={infoLabelClass}>Seats</p>
-                <p className={infoValueClass}>Plenty open</p>
+                <p className={infoLabelClass}>{t("home.seats")}</p>
+                <p className={infoValueClass}>{t("home.seatsValue")}</p>
               </div>
             </div>
           </div>
@@ -507,9 +514,9 @@ export default function Home() {
       <section className="mx-auto w-full max-w-6xl px-6 py-10 pb-12">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="section-title">Popular Picks</h2>
+            <h2 className="section-title">{t("home.popularPicks")}</h2>
             <p className="section-subtitle text-cocoa/85">
-              Selected from our best and popular menu items.
+              {t("home.popularPicksDescription")}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -518,10 +525,10 @@ export default function Home() {
               variant="secondary"
               className={secondaryButtonClass}
             >
-              <Link to="/menu">Browse Menu</Link>
+              <Link to="/menu">{t("home.browseMenu")}</Link>
             </Button>
             <Button asChild variant="outline" className={outlineButtonClass}>
-              <Link to="/gallery">Full Gallery</Link>
+              <Link to="/gallery">{t("home.fullGallery")}</Link>
             </Button>
           </div>
         </div>
@@ -563,11 +570,13 @@ export default function Home() {
                   <div className="absolute bg-gradient-to-t from-obsidian via-obsidian/15 to-transparent" />
                   <div className="absolute left-4 top-4">
                     <Badge>
-                      {item.isAvailable === false ? "Paused" : "Popular"}
+                      {item.isAvailable === false
+                        ? t("home.paused")
+                        : t("home.popularBadge")}
                     </Badge>
                   </div>
                   <div className="absolute bottom-4 right-4 rounded-full bg-obsidian/80 px-4 py-2 text-sm font-semibold text-cream">
-                    {isFrom ? "From " : ""}
+                    {isFrom ? t("productCard.from") : ""}
                     {price.toFixed(2)} JD
                   </div>
                 </div>
@@ -587,7 +596,7 @@ export default function Home() {
                       navigate(productPath, { state: navigationState });
                     }}
                   >
-                    View Product
+                    {t("home.viewItem")}
                   </Button>
                 </div>
               </div>
@@ -607,12 +616,10 @@ export default function Home() {
           <div className={rewardsSectionLayoutClass}>
             <div className={rewardsCardInnerClass}>
               <h2 className={rewardsTitleClass}>
-                Rewards that actually feel good.
+                {t("home.rewardsTitle")}
               </h2>
               <p className={rewardsTextClass}>
-                Collect points on every completed order, unlock better
-                redemptions, and keep the experience tied to your regular
-                visits.
+                {t("home.rewardsDescription")}
               </p>
               <Button
                 asChild
@@ -620,7 +627,7 @@ export default function Home() {
                 className={secondaryButtonClass}
               >
                 <Link to={isAuthenticated ? "/rewards" : "/sign-in"}>
-                  {isAuthenticated ? "View Rewards" : "Sign in"}
+                  {isAuthenticated ? t("home.viewRewards") : t("common.signIn")}
                 </Link>
               </Button>
             </div>
@@ -632,15 +639,15 @@ export default function Home() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className={rewardsPreviewTitleClass}>
-                        Cortina.D Member
+                        {t("home.memberCardTitle")}
                       </p>
                     </div>
-                    <span className={rewardsPreviewBadgeClass}>Loyalty</span>
+                    <span className={rewardsPreviewBadgeClass}>{t("home.loyalty")}</span>
                   </div>
 
                   <div className={rewardsPreviewInnerClass}>
                     <div>
-                      <p className={rewardsPreviewLabelClass}>Card Number</p>
+                      <p className={rewardsPreviewLabelClass}>{t("home.cardNumber")}</p>
                       <p className={rewardsPreviewNumberClass}>
                         **** **** **** {rewardCardPreview.lastFour}
                       </p>
@@ -648,11 +655,11 @@ export default function Home() {
 
                     <div className="mt-3 flex items-end justify-between gap-4">
                       <div>
-                        <p className={rewardsPreviewLabelClass}>Member</p>
-                        <p className={rewardsPreviewValueClass}>Coffe Master</p>
+                        <p className={rewardsPreviewLabelClass}>{t("home.member")}</p>
+                        <p className={rewardsPreviewValueClass}>{t("home.memberValue")}</p>
                       </div>
                       <div className="text-right">
-                        <p className={rewardsPreviewLabelClass}>CVV</p>
+                        <p className={rewardsPreviewLabelClass}>{t("home.cvv")}</p>
                         <p className={rewardsPreviewValueClass}>
                           {rewardCardPreview.cvv}
                         </p>
@@ -661,9 +668,9 @@ export default function Home() {
                   </div>
 
                   <div>
-                    <p className={rewardsPreviewMetaClass}>Home feature</p>
+                    <p className={rewardsPreviewMetaClass}>{t("home.homeFeature")}</p>
                     <p className={rewardsPreviewMetaValueClass}>
-                      Ready for a custom card visual
+                      {t("home.homeFeatureValue")}
                     </p>
                   </div>
                 </div>
@@ -676,7 +683,7 @@ export default function Home() {
           <div className={eventsPanelClass}>
             <div className="flex items-center gap-3">
               <h3 className="text-lg font-semibold text-espresso">
-                Upcoming Events
+                {t("home.upcomingEvents")}
               </h3>
             </div>
             <div className="mt-4 space-y-3">
@@ -685,13 +692,13 @@ export default function Home() {
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className={eventMetaClass}>
-                        {formatEventDate(event.startDateTime)}
+                        {formatEventDate(event.startDateTime, locale)}
                       </p>
                       <p className={`mt-1.5 ${eventTitleClass}`}>
                         {event.title}
                       </p>
                     </div>
-                    <Badge>Featured</Badge>
+                    <Badge>{t("home.featured")}</Badge>
                   </div>
                   <p className={eventDescriptionClass}>
                     {event.description ||
@@ -703,7 +710,7 @@ export default function Home() {
                     size="sm"
                     className={`mt-4 ${secondaryButtonClass}`}
                   >
-                    <Link to="/events">Go to Event</Link>
+                    <Link to="/events">{t("home.goToEvent")}</Link>
                   </Button>
                 </div>
               ))}
@@ -726,24 +733,24 @@ export default function Home() {
             </span>
             <div>
               <p className="text-sm font-semibold text-espresso">
-                Visit Cortina.D
+                {t("home.visitTitle")}
               </p>
-              <p className="text-xs text-cocoa/75">Uni Street, Irbid, Jordan</p>
+              <p className="text-xs text-cocoa/75">{t("home.visitSubtitle")}</p>
             </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <span className="pill inline-flex items-center justify-center text-center">
-              Daily - 9:00 AM to 12:00 AM
+              {t("home.visitHours")}
             </span>
             <Button
               asChild
               variant="secondary"
               className={secondaryButtonClass}
             >
-              <Link to="/location">Location</Link>
+              <Link to="/location">{t("home.locationButton")}</Link>
             </Button>
             <Button asChild variant="outline" className={outlineButtonClass}>
-              <Link to="/gallery">Gallery</Link>
+              <Link to="/gallery">{t("home.galleryButton")}</Link>
             </Button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Helmet } from "react-helmet-async";
+import { useTranslation } from "react-i18next";
 import api from "../services/api";
 import ProductCard from "../components/menu/ProductCard";
 import useCart from "../hooks/useCart";
@@ -43,6 +44,7 @@ export default function Menu() {
   const { addItem } = useCart();
   const { data: settings } = useSettings();
   const { theme } = useTheme();
+  const { t, i18n } = useTranslation();
   const [filters, setFilters] = useState({
     category: "",
     search: "",
@@ -81,6 +83,7 @@ export default function Menu() {
     [location.key],
   );
   const isDayTheme = theme === "day";
+  const isRtl = i18n.resolvedLanguage === "ar";
   const orderEditBannerClass = cn(
     "flex flex-wrap items-center justify-between gap-3 rounded-[1.35rem] border px-5 py-4 shadow-[0_18px_34px_rgba(19,14,12,0.14)]",
     isDayTheme
@@ -273,7 +276,7 @@ export default function Menu() {
       if (!queuedHighlightDraftRef.current) {
         setHighlightDraft(lastSavedHighlightsRef.current);
       }
-      setHighlightPickerError("Couldn't update the Home highlights right now.");
+      setHighlightPickerError(t("menuPage.homeUpdateError"));
     } finally {
       highlightSaveInFlightRef.current = false;
       if (queuedHighlightDraftRef.current) {
@@ -282,7 +285,7 @@ export default function Menu() {
         setIsHighlightSyncing(false);
       }
     }
-  }, [queryClient]);
+  }, [queryClient, t]);
 
   useEffect(() => {
     const nextHighlights = {
@@ -345,7 +348,7 @@ export default function Menu() {
     setHighlightDraft((prev) => {
       const alreadySelected = prev.featuredProductIds.includes(productId);
       if (!alreadySelected && prev.featuredProductIds.length >= 6) {
-        setHighlightPickerError("You can only keep up to 6 products on Home.");
+        setHighlightPickerError(t("menuPage.homeLimitError"));
         return prev;
       }
 
@@ -365,12 +368,12 @@ export default function Menu() {
   return (
     <>
       <Helmet>
-        <title>Our Menu — Cortina.D</title>
+        <title>{`${t("menuPage.title")} - Cortina.D`}</title>
         <meta
           name="description"
           content="Explore the Cortina.D menu with signature coffee, refined blends, and premium add-ons curated for every mood."
         />
-        <meta property="og:title" content="Our Menu — Cortina.D" />
+        <meta property="og:title" content={`${t("menuPage.title")} - Cortina.D`} />
         <meta
           property="og:description"
           content="Browse the Cortina.D menu, today's special, and curated favorites."
@@ -387,7 +390,7 @@ export default function Menu() {
                   isDayTheme ? "text-espresso" : "text-cream",
                 )}
               >
-                Home highlights picker
+                {t("menuPage.homePickerTitle")}
               </p>
               <p
                 className={cn(
@@ -395,20 +398,17 @@ export default function Menu() {
                   isDayTheme ? "text-cocoa/68" : "text-cocoa/78",
                 )}
               >
-                Choose items directly from the menu. Use{" "}
-                <span className="font-semibold">Add to Home</span> or{" "}
-                <span className="font-semibold">Today&apos;s Special</span>,
-                then head back when you&apos;re done.
+                {t("menuPage.homePickerDescription")}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              {isHighlightSyncing && <Badge>Syncing...</Badge>}
+              {isHighlightSyncing && <Badge>{t("menuPage.syncing")}</Badge>}
               <Button
                 size="sm"
                 variant="secondary"
                 onClick={handleReturnToAdminHighlights}
               >
-                Back
+                {t("menuPage.back")}
               </Button>
             </div>
           </div>
@@ -422,15 +422,15 @@ export default function Menu() {
           <div className={orderEditBannerClass}>
             <div>
               <p className={cn("text-sm font-semibold", isDayTheme ? "text-espresso" : "text-cream")}>
-                Adding to order #{orderEditSession.orderId}
+                {t("menuPage.addingToOrder", { id: orderEditSession.orderId })}
               </p>
               <p className={cn("mt-1 text-xs", isDayTheme ? "text-cocoa/68" : "text-cocoa/78")}>
-                Pick a menu item, open it, then attach it to the same order.
+                {t("menuPage.addingToOrderDescription")}
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="secondary" onClick={handleReturnToOrder}>
-                Back To Your Order
+                {t("menuPage.backToOrder")}
               </Button>
             </div>
           </div>
@@ -441,17 +441,16 @@ export default function Menu() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-semibold text-espresso sm:text-4xl">
-              Menu
+              {t("menuPage.title")}
             </h1>
             <p className="mt-2 max-w-2xl text-sm text-cocoa/70 sm:text-base">
-              Crafted blends, signature espresso, and elevated moments. Filter
-              by taste, size, and price to find your perfect cup.
+              {t("menuPage.description")}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <SparkIcon className="h-6 w-6 text-gold" />
             <span className="text-xs uppercase tracking-[0.3em] text-cocoa/70">
-              Luxury
+              {t("menuPage.luxury")}
             </span>
           </div>
         </div>
@@ -462,10 +461,10 @@ export default function Menu() {
             onClick={() => setShowFilters((prev) => !prev)}
           >
             <FilterIcon className="h-4 w-4" />
-            Filters
+            {t("menuPage.filters")}
           </Button>
-          <Badge>{filteredProducts.length} items</Badge>
-          <Badge variant="highlight">Luxury Selection</Badge>
+          <Badge>{t("menuPage.itemsCount", { count: filteredProducts.length })}</Badge>
+          <Badge variant="highlight">{t("menuPage.luxury")}</Badge>
         </div>
       </div>
 
@@ -474,28 +473,32 @@ export default function Menu() {
           className={`card p-5 ${showFilters ? "block" : "hidden lg:block"}`}
         >
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-espresso">Filters</h2>
+            <h2 className="text-sm font-semibold text-espresso">{t("menuPage.filters")}</h2>
             <Button size="sm" variant="ghost" onClick={resetFilters}>
-              Reset
+              {t("common.reset")}
             </Button>
           </div>
 
           <div className="mt-4 space-y-4 text-sm">
             <div className="relative">
-              <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-cocoa/70" />
+              <SearchIcon
+                className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-cocoa/70 ${
+                  isRtl ? "right-3" : "left-3"
+                }`}
+              />
               <Input
                 type="text"
-                placeholder="Search drinks..."
+                placeholder={t("menuPage.searchPlaceholder")}
                 value={filters.search}
                 onChange={(e) =>
                   setFilters((prev) => ({ ...prev, search: e.target.value }))
                 }
-                className="pl-9"
+                className={isRtl ? "pr-9" : "pl-9"}
               />
             </div>
 
             <div>
-              <p className="text-xs font-semibold text-cocoa/70">Category</p>
+              <p className="text-xs font-semibold text-cocoa/70">{t("menuPage.category")}</p>
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <Button
                   size="sm"
@@ -505,7 +508,7 @@ export default function Menu() {
                     setFilters((prev) => ({ ...prev, category: "" }))
                   }
                 >
-                  All
+                  {t("common.all")}
                 </Button>
                 {categories.map((category) => (
                   <Button
@@ -531,19 +534,19 @@ export default function Menu() {
             </div>
 
             <SelectMenu
-              label="Size"
+              label={t("menuPage.size")}
               value={filters.size}
               onChange={(value) =>
                 setFilters((prev) => ({ ...prev, size: value }))
               }
-              placeholder="Any size"
+              placeholder={t("menuPage.anySize")}
               options={sizes.map((size) => ({ label: size, value: size }))}
             />
 
             <div className="grid gap-3 sm:grid-cols-2">
               <Input
                 type="number"
-                placeholder="Min JD"
+                placeholder={t("menuPage.minPricePlaceholder")}
                 value={filters.minPrice}
                 onChange={(e) =>
                   setFilters((prev) => ({ ...prev, minPrice: e.target.value }))
@@ -551,7 +554,7 @@ export default function Menu() {
               />
               <Input
                 type="number"
-                placeholder="Max JD"
+                placeholder={t("menuPage.maxPricePlaceholder")}
                 value={filters.maxPrice}
                 onChange={(e) =>
                   setFilters((prev) => ({ ...prev, maxPrice: e.target.value }))
@@ -560,17 +563,17 @@ export default function Menu() {
             </div>
 
             <SelectMenu
-              label="Sort by"
+              label={t("menuPage.sortBy")}
               value={filters.sort}
               onChange={(value) =>
                 setFilters((prev) => ({ ...prev, sort: value }))
               }
-              placeholder="Newest"
+              placeholder={t("menuPage.sortNewest")}
               options={[
-                { label: "Newest", value: "newest" },
-                { label: "Price: Low to High", value: "price-asc" },
-                { label: "Price: High to Low", value: "price-desc" },
-                { label: "Name: A to Z", value: "name-asc" },
+                { label: t("menuPage.sortNewest"), value: "newest" },
+                { label: t("menuPage.sortPriceAsc"), value: "price-asc" },
+                { label: t("menuPage.sortPriceDesc"), value: "price-desc" },
+                { label: t("menuPage.sortNameAsc"), value: "name-asc" },
               ]}
             />
 
@@ -586,7 +589,7 @@ export default function Menu() {
                 }
                 className="accent-gold"
               />
-              Show unavailable items
+              {t("menuPage.showUnavailable")}
             </label>
           </div>
         </aside>
@@ -594,14 +597,14 @@ export default function Menu() {
         <div>
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 text-sm">
             <p className="text-cocoa/70">
-              Showing {filteredProducts.length} curated items
+              {t("menuPage.showingCurated", { count: filteredProducts.length })}
             </p>
           </div>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {filteredProducts.length === 0 ? (
               <p className="text-sm text-cocoa/60">
-                No items match these filters.
+                {t("menuPage.noItems")}
               </p>
             ) : (
               filteredProducts.map((product) => (
@@ -627,8 +630,8 @@ export default function Menu() {
                           }}
                         >
                           {currentTodaysSpecialId === product._id
-                            ? "Today's Special"
-                            : "Set as Today's Special"}
+                            ? t("menuPage.todaysSpecial")
+                            : t("menuPage.setAsTodaysSpecial")}
                         </Button>
                         <Button
                           type="button"
@@ -644,8 +647,8 @@ export default function Menu() {
                           }}
                         >
                           {currentFeaturedIds.includes(product._id)
-                            ? "Remove from Home"
-                            : "Add to Home"}
+                            ? t("menuPage.removeFromHome")
+                            : t("menuPage.addToHome")}
                         </Button>
                       </>
                     ) : null
